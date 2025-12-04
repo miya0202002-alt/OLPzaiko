@@ -6,18 +6,18 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整（スマホ18:9 完全対応版）
+# 設定・デザイン調整（スマホ幅完全固定・縦線区切り版）
 # ---------------------------------------------------------
 
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
 
-# カスタムCSS：スマホの画面幅に絶対収めるための強力な設定
+# カスタムCSS：幅を％で完全固定し、縦線を入れる設定
 st.markdown("""
 <style>
-    /* 全体のリセットとフォント */
+    /* リセット */
     body { font-family: "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* ★重要：スマホの左右の余白を極限まで削る */
+    /* コンテナの余白を削除して画面いっぱい使う */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 2rem !important;
@@ -26,106 +26,122 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 検索バー周り */
-    .control-panel {
-        margin-bottom: 10px;
-        padding: 0 5px;
-    }
-    div[data-testid="stTextInput"] { margin-bottom: 0px; }
-
-    /* テーブルヘッダー（黒背景・白文字） */
-    .table-header {
-        background-color: #212529;
-        color: #fff;
-        padding: 6px 2px;
-        font-weight: bold;
-        font-size: 0.75rem; /* スマホ用に小さく */
-        border-radius: 4px 4px 0 0;
-        display: flex;
-        align-items: center;
-        margin-top: 5px;
-    }
-    
-    /* 行のデザイン（強制1行・高さ固定） */
-    .row-container {
-        background-color: #fff;
-        border-bottom: 1px solid #eee;
-        border-left: 1px solid #eee;
-        border-right: 1px solid #eee;
-        padding: 4px 0;
-        height: 45px; /* 高さを固定してガタつき防止 */
-        display: flex;
-        align-items: center;
-        overflow: hidden; /* はみ出し防止 */
-    }
-
-    /* 教科書名の省略設定（これが重要） */
-    .book-title {
-        font-weight: bold;
-        font-size: 0.85rem;
-        white-space: nowrap;      /* 改行しない */
-        overflow: hidden;         /* はみ出た部分は隠す */
-        text-overflow: ellipsis;  /* ...にする */
-        display: block;
-        color: #333;
-    }
-    
-    /* 在庫数と不足表示 */
-    .stock-val { font-weight: bold; font-size: 0.9rem; text-align: center; display: block; }
-    .text-alert { color: #e74c3c !important; } /* 朱色 */
-    .badge-alert {
-        font-size: 0.6rem;
-        color: #e74c3c;
-        font-weight: bold;
-        display: block;
-        line-height: 1;
-    }
-
-    /* Streamlitのレイアウト強制調整 */
+    /* Streamlitのカラム設定を強制上書き（隙間ゼロ・折り返しなし） */
     div[data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important; /* 絶対に折り返さない */
-        gap: 2px !important;          /* 隙間を最小に */
-        align-items: center !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0 !important; /* 隙間なし */
+        align-items: stretch !important; /* 高さを揃える */
     }
-    div[data-testid="column"] {
-        min-width: 0 !important;      /* 幅の最小制限を解除 */
-        flex: 1 1 auto !important;
-        padding: 0 !important;
+    
+    /* カラムごとの幅定義（合計100%になるように配分） */
+    /* 1列目：教科書情報 (40%) */
+    div[data-testid="column"]:nth-of-type(1) {
+        flex: 0 0 40% !important;
+        max-width: 40% !important;
+        min-width: 0 !important;
+        border-right: 1px solid #e0e0e0; /* 縦線 */
+    }
+    /* 2列目：在庫 (15%) */
+    div[data-testid="column"]:nth-of-type(2) {
+        flex: 0 0 15% !important;
+        max-width: 15% !important;
+        min-width: 0 !important;
+        border-right: 1px solid #e0e0e0;
+    }
+    /* 3列目：数量 (15%) */
+    div[data-testid="column"]:nth-of-type(3) {
+        flex: 0 0 15% !important;
+        max-width: 15% !important;
+        min-width: 0 !important;
+        border-right: 1px solid #e0e0e0;
+    }
+    /* 4列目：入庫 (15%) */
+    div[data-testid="column"]:nth-of-type(4) {
+        flex: 0 0 15% !important;
+        max-width: 15% !important;
+        min-width: 0 !important;
+        border-right: 1px solid #e0e0e0;
+    }
+    /* 5列目：出庫 (15%) */
+    div[data-testid="column"]:nth-of-type(5) {
+        flex: 0 0 15% !important;
+        max-width: 15% !important;
+        min-width: 0 !important;
     }
 
-    /* 数量入力欄の極小化 */
+    /* 各カラムの中身の余白調整 */
+    div[data-testid="column"] > div {
+        padding: 0 2px !important;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    /* ヘッダー（黒背景）のスタイル（カラム幅と合わせる） */
+    .header-row {
+        display: flex;
+        background-color: #222;
+        color: white;
+        font-weight: bold;
+        font-size: 0.75rem;
+        border-radius: 4px 4px 0 0;
+        overflow: hidden;
+    }
+    .h-col {
+        padding: 8px 2px;
+        text-align: center;
+        border-right: 1px solid #444; /* ヘッダー内の縦線 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .h-col:last-child { border-right: none; }
+    
+    /* 1行ごとの枠線 */
+    .row-wrapper {
+        border-bottom: 1px solid #e0e0e0;
+        border-left: 1px solid #e0e0e0;
+        border-right: 1px solid #e0e0e0;
+        background-color: #fff;
+    }
+
+    /* 教科書名の表示調整 */
+    .book-name {
+        font-weight: bold;
+        font-size: 0.8rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+    .book-sub { font-size: 0.65rem; color: #666; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* 入力欄とボタンの極小化 */
     div[data-testid="stNumberInput"] input {
         padding: 0 !important;
-        height: 1.8rem !important;
-        min-height: 1.8rem !important;
-        font-size: 0.8rem !important;
+        height: 2.0em !important;
+        font-size: 0.9em !important;
         text-align: center !important;
     }
-    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
-    button[kind="secondaryForm"] { display: none !important; }
-
-    /* ボタンの極小化 */
     div[data-testid="column"] button {
         padding: 0 !important;
-        height: 1.8rem !important;
-        min-height: 1.8rem !important;
-        font-size: 0.75rem !important;
-        border-radius: 3px;
-        border: none;
+        height: 2.0em !important;
+        font-size: 0.8em !important;
         width: 100%;
-    }
-
-    /* 色設定 */
-    button[kind="secondary"] { background-color: #28a745 !important; color: white !important; } /* 緑 */
-    button[kind="primary"] { background-color: #e74c3c !important; color: white !important; } /* 朱色 */
-    div.stHorizontalBlock button[kind="secondary"] { /* 更新ボタンはグレー */
-        background-color: #6c757d !important;
-        border: 1px solid #ccc !important;
+        border-radius: 2px;
     }
     
-    /* 不足時の行背景 */
-    .bg-alert { background-color: #fff8f8; }
-
+    /* 色設定 */
+    button[kind="secondary"] { background-color: #28a745 !important; color: white !important; border: none !important; }
+    button[kind="primary"] { background-color: #e74c3c !important; color: white !important; border: none !important; }
+    
+    /* アラート */
+    .bg-alert { background-color: #fff5f5 !important; }
+    .text-alert { color: #e74c3c; font-weight: bold; }
+    
 </style>
 """, unsafe_allow_html=True)
 
@@ -172,14 +188,13 @@ def main():
         if col in df_items.columns:
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # 操作パネル
-    c_upd, c_src = st.columns([1.2, 3.8])
-    with c_upd:
-        if st.button("↻ 更新"): st.rerun()
-    with c_src:
+    # 検索・更新・並べ替え
+    c_search, c_upd = st.columns([4, 1]) # ここは標準の幅設定を使用（下のCSSはテーブル部分のみに効くように設計）
+    with c_search:
         search_query = st.text_input("src", placeholder="検索...", label_visibility="collapsed")
+    with c_upd:
+        if st.button("↻"): st.rerun()
 
-    # 並べ替え
     sort = st.radio("", ["追加日順", "在庫順"], horizontal=True, label_visibility="collapsed")
     if sort == "追加日順":
         if '商品ID' in df_items.columns: df_items = df_items.sort_values('商品ID', ascending=False)
@@ -188,66 +203,69 @@ def main():
 
     if search_query:
         mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
-        df = df_items[mask]
+        df_display = df_items[mask]
     else:
-        df = df_items
+        df_display = df_items
 
-    tab1, tab2 = st.tabs(["📦 在庫", "➕ 登録"])
+    # タブ名変更
+    tab1, tab2 = st.tabs(["在庫", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（絶対1行レイアウト）
+    # 在庫タブ（縦線あり・完全幅固定）
     # ---------------------------------------------------------
     with tab1:
-        # ヘッダー行
+        # ヘッダー（黒背景・縦線あり）
+        # CSSのパーセンテージと完全に一致させる (40%, 15%, 15%, 15%, 15%)
         st.markdown("""
-        <div class="table-header">
-            <div style="flex:4; padding-left:2px;">教科書名</div>
-            <div style="flex:1; text-align:center;">在庫</div>
-            <div style="flex:1.2; text-align:center;">数</div>
-            <div style="flex:1.2; text-align:center;">入</div>
-            <div style="flex:1.2; text-align:center;">出</div>
+        <div class="header-row">
+            <div class="h-col" style="flex:0 0 40%;">教科書情報</div>
+            <div class="h-col" style="flex:0 0 15%;">在庫</div>
+            <div class="h-col" style="flex:0 0 15%;">数</div>
+            <div class="h-col" style="flex:0 0 15%;">入庫</div>
+            <div class="h-col" style="flex:0 0 15%;">出庫</div>
         </div>
         """, unsafe_allow_html=True)
 
-        for i, row in df.iterrows():
+        for i, row in df_display.iterrows():
             id_ = int(row['商品ID'])
             name = row['教科書名']
             stock = int(row['現在在庫数'])
             alert = int(row['発注点'])
+            pub = row['出版社']
             
             is_low = stock <= alert
             bg_cls = "bg-alert" if is_low else ""
-            txt_cls = "text-alert" if is_low else ""
-            alert_msg = '<span class="badge-alert">不足</span>' if is_low else ""
+            stock_cls = "text-alert" if is_low else ""
 
-            # 行コンテナ開始
-            st.markdown(f'<div class="row-container {bg_cls}">', unsafe_allow_html=True)
+            # 行のラッパー開始
+            st.markdown(f'<div class="row-wrapper {bg_cls}">', unsafe_allow_html=True)
             
-            # カラム比率：名前エリアを確保しつつ、他を最小限に
-            c1, c2, c3, c4, c5 = st.columns([4, 1, 1.2, 1.2, 1.2], gap="small")
+            # カラム（CSSで幅を強制制御しているので、ここでの比率は無視されるが念のため記述）
+            c1, c2, c3, c4, c5 = st.columns(5)
             
-            with c1:
-                # 教科書名（はみ出たら...になる）
-                st.markdown(f'<span class="book-title" title="{name}">{name}</span>', unsafe_allow_html=True)
-            
-            with c2:
-                # 在庫数と不足表示（朱色）
+            with c1: # 教科書情報 (40%)
                 st.markdown(f"""
-                <div style="text-align:center; line-height:1;">
-                    <span class="stock-val {txt_cls}">{stock}</span>
-                    {alert_msg}
+                <div style="padding-left:4px; overflow:hidden;">
+                    <span class="book-name" title="{name}">{name}</span>
+                    <span class="book-sub">{pub}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with c2: # 在庫 (15%)
+                st.markdown(f"""
+                <div style="text-align:center;">
+                    <span style="font-weight:bold; {stock_cls}">{stock}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
-            with c3:
-                # 数量：初期値1固定
+            with c3: # 数 (15%)
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{id_}")
                 
-            with c4:
+            with c4: # 入庫 (15%)
                 if st.button("入", key=f"in_{id_}"):
                     upd(ws_items, ws_logs, id_, name, stock, qty, "入庫")
             
-            with c5:
+            with c5: # 出庫 (15%)
                 if st.button("出", key=f"out_{id_}", type="primary"):
                     upd(ws_items, ws_logs, id_, name, stock, qty, "出庫")
 
@@ -307,9 +325,8 @@ def add_log(ws_l, type_, id_, name, change):
         vals = ws_l.col_values(1)
         new_id = int(vals[-1])+1 if len(vals)>1 and str(vals[-1]).isdigit() else 1
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
-        ws_l.append_row([int(new_log_id), str(now), str(type_), int(id_), int(change), str(name)])
+        ws_l.append_row([int(new_id), str(now), str(type_), int(id_), int(change), str(name)])
     except:
-        # 万が一のエラー時はID=1で記録トライ
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
         ws_l.append_row([1, str(now), str(type_), int(id_), int(change), str(name)])
 
