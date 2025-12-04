@@ -9,16 +9,14 @@ from datetime import datetime
 # 設定・デザイン調整
 # ---------------------------------------------------------
 
-# アイコンなし、シンプルな設定
 st.set_page_config(page_title="在庫管理システム", layout="centered", initial_sidebar_state="collapsed")
 
-# カスタムCSS：シックでモダンなUI、入出庫ボタンの色分け
+# カスタムCSS：シックでモダンなUI
 st.markdown("""
 <style>
-    /* 全体のフォントをスッキリさせる */
     body { font-family: "Helvetica Neue", Arial, sans-serif; color: #333; }
     
-    /* ボタンのスタイル調整 */
+    /* ボタン調整 */
     div.stButton > button {
         width: 100%;
         border-radius: 6px;
@@ -46,7 +44,6 @@ st.markdown("""
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
     }
     .item-title {
         font-size: 1.1em;
@@ -63,11 +60,8 @@ st.markdown("""
     }
     .stock-unit { font-size: 0.6em; color: #7f8c8d; }
     
-    /* 在庫不足時の赤文字 */
     .alert-text { color: #e74c3c; }
     .normal-text { color: #2c3e50; }
-    
-    /* スマホでの余白調整 */
     .block-container { padding-top: 2rem; padding-bottom: 4rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -104,27 +98,27 @@ def load_data():
         st.error(f"接続エラー: {e}")
         return None, None, None, None, None
 
-# ---------------------------------------------------------
-# メイン処理
-# ---------------------------------------------------------
-
 def main():
     st.markdown("### 教科書在庫管理")
     
     sh, ws_items, df_items, ws_logs, df_logs = load_data()
     if sh is None: return
 
-    # データ前処理
+    # 列名の空白削除
     df_items.columns = df_items.columns.str.strip()
-    try:
-        df_items['商品ID'] = pd.to_numeric(df_items['商品ID'])
-        df_items['現在在庫数'] = pd.to_numeric(df_items['現在在庫数'])
-        df_items['発注点'] = pd.to_numeric(df_items['発注点'])
-    except: st.warning("数値変換エラー")
 
-    df_items = df_items.sort_values('商品ID', ascending=False)
+    # ★ここが修正ポイント：強力な数値変換（エラー回避）
+    # 数字以外が入っていても、強制的に「0」にして int型に変換します
+    numeric_cols = ['商品ID', '現在在庫数', '発注点']
+    for col in numeric_cols:
+        if col in df_items.columns:
+            df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # 検索バーと更新ボタン
+    # 並べ替え
+    if '商品ID' in df_items.columns:
+        df_items = df_items.sort_values('商品ID', ascending=False)
+
+    # 検索バー
     col_search, col_btn = st.columns([4, 1])
     with col_search:
         search_query = st.text_input("検索", placeholder="キーワードを入力", label_visibility="collapsed")
@@ -138,27 +132,27 @@ def main():
     else:
         df_display = df_items
 
-    # タブ（アイコンなしのシンプルテキスト）
+    # タブ
     tab_list, tab_add, tab_log = st.tabs(["在庫リスト", "新規登録", "履歴"])
 
-    # --- 在庫リストタブ ---
+    # --- 在庫リスト ---
     with tab_list:
         if df_display.empty:
-            st.info("データが見つかりません")
+            st.info("データがありません")
         
         for index, row in df_display.iterrows():
-            # 変数準備
-            item_id = int(row['商品ID']) # Pythonのint型に変換
+            # 安全にデータを取得
+            item_id = row['商品ID']
             name = row['教科書名']
-            stock = int(row['現在在庫数'])
-            alert = int(row['発注点'])
+            stock = row['現在在庫数']
+            alert = row['発注点']
             pub = row['出版社']
             loc = row['保管場所']
             is_low = stock <= alert
             
-            # カード表示（HTML生成）
             stock_color_class = "alert-text" if is_low else "normal-text"
             
+            # カード表示
             st.markdown(f"""
             <div class="item-container">
                 <div class="item-header">
@@ -175,38 +169,29 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             
-            # 操作エリア（カードの直下に配置）
+            # 操作エリア
             c_input, c_in, c_out = st.columns([2, 1.5, 1.5])
-            
             with c_input:
-                # 数量入力（キーをユニークにする）
                 qty = st.number_input("数量", min_value=1, value=10, label_visibility="collapsed", key=f"q_{item_id}")
-            
             with c_in:
-                # 入庫ボタン（通常のボタン）
                 if st.button("入庫", key=f"in_{item_id}"):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
-            
             with c_out:
-                # 出庫ボタン（赤色にするためにtype="primary"を使用）
                 if st.button("出庫", key=f"out_{item_id}", type="primary"):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
-    # --- 新規登録タブ ---
+    # --- 新規登録 ---
     with tab_add:
         with st.form("add"):
             name = st.text_input("教科書名 *")
-            
             existing_pubs = list(df_items['出版社'].unique()) if '出版社' in df_items.columns else []
             pub_select = st.selectbox("出版社 *", options=["選択してください"] + existing_pubs + ["その他（手入力）"])
             pub_input = ""
             if pub_select == "その他（手入力）":
                 pub_input = st.text_input("出版社名を入力")
-                
             c1, c2 = st.columns(2)
             isbn = c1.text_input("ISBN")
             loc = c2.text_input("保管場所")
-            
             c3, c4 = st.columns(2)
             stock = c3.number_input("初期在庫 *", 0)
             alert = c4.number_input("発注点", 10)
@@ -217,39 +202,28 @@ def main():
                     st.error("必須項目を入力してください")
                 else:
                     new_id = int(df_items['商品ID'].max()) + 1
-                    # Pythonの基本型(int/str)に変換してからリストにする
+                    # int型、str型を明示してリスト作成
                     new_row = [int(new_id), str(name), str(isbn), str(final_pub), int(stock), int(alert), str(loc)]
                     ws_items.append_row(new_row)
                     add_log(ws_logs, "新規登録", new_id, name, stock)
                     st.success("登録しました")
                     st.rerun()
 
-    # --- 履歴タブ ---
+    # --- 履歴 ---
     with tab_log:
         st.dataframe(df_logs, use_container_width=True)
 
-
-# ---------------------------------------------------------
-# ロジック関数（ログ記録の修正済み）
-# ---------------------------------------------------------
-
 def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity, action_type):
-    # 計算
     new_stock = current_stock + quantity if action_type == "入庫" else current_stock - quantity
     if new_stock < 0:
         st.error("在庫が足りません")
         return
-        
     try:
-        # スプレッドシート更新
         cell = ws_items.find(str(item_id), in_column=1)
         ws_items.update_cell(cell.row, 5, new_stock)
-        
-        # ログ記録
         change = quantity if action_type == "入庫" else -quantity
         add_log(ws_logs, action_type, item_id, item_name, change)
-        
-        st.toast(f"{item_name} を {action_type} しました！") # スマホっぽい通知
+        st.toast(f"{item_name} を {action_type} しました！")
         st.rerun()
     except Exception as e:
         st.error(f"エラー: {e}")
@@ -257,24 +231,12 @@ def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity,
 def add_log(ws_logs, action_type, item_id, item_name, change_val):
     try:
         latest = ws_logs.cell(2, 1).value
-        # ここで確実に int 型に変換する
         new_log_id = int(latest) + 1 if latest and latest.isdigit() else 1
-    except:
-        new_log_id = 1
+    except: new_log_id = 1
     
     now = datetime.now().strftime("%Y/%m/%d %H:%M")
-    
-    # 全てのデータを「Pythonの標準的な型（int, str）」にしてから渡す
-    # これでスプレッドシートへの転記エラー（JSON serialization error）が直ります
-    row_data = [
-        int(new_log_id),
-        str(now),
-        str(action_type),
-        int(item_id),
-        int(change_val),
-        str(item_name)
-    ]
-    
+    # Pythonの標準型に変換して渡す
+    row_data = [int(new_log_id), str(now), str(action_type), int(item_id), int(change_val), str(item_name)]
     ws_logs.insert_row(row_data, index=2)
 
 if __name__ == "__main__":
