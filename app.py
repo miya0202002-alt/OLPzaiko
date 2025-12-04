@@ -31,7 +31,6 @@ def load_data():
         sh = client.open(SPREADSHEET_NAME)
         ws_items = sh.worksheet('商品マスタ')
         items_data = ws_items.get_all_values()
-        # データが空の場合の対策
         if not items_data:
             return None, None, pd.DataFrame(), None, pd.DataFrame()
             
@@ -57,7 +56,7 @@ def main():
     if sh is None:
         return
 
-    # ★ここが修正ポイント：列名の「見えない空白」を自動削除！
+    # 列名の「見えない空白」を自動削除
     df_items.columns = df_items.columns.str.strip()
 
     try:
@@ -103,15 +102,15 @@ def main():
 
         st.subheader("在庫リスト")
         
-        # エラーが出たら原因を教える機能
-        display_cols = ['教科書名', '出版社', '現在在庫数', '保管場所', 'ISBNコード']
+        # ★修正：ここに '発注点' と '商品ID' を追加しました！これでエラーが消えます。
+        display_cols = ['商品ID', '教科書名', '出版社', '現在在庫数', '発注点', '保管場所', 'ISBNコード']
         
         # 必要な列があるかチェック
         missing_cols = [col for col in display_cols if col not in df_items.columns]
         if missing_cols:
             st.error(f"⚠️ エラー：以下の列名がシートに見つかりません！")
             st.code(f"見つからない列: {missing_cols}")
-            st.info("👇 **実際のシートの列名はこうなっています（確認してください）**")
+            st.info("👇 実際のシートの列名はこうなっています")
             st.write(df_items.columns.tolist())
         else:
             def highlight_low_stock(row):
@@ -129,17 +128,29 @@ def main():
         st.subheader("新規登録")
         with st.form("add"):
             name = st.text_input("教科書名 *")
-            pub = st.text_input("出版社 *") # 簡易化
+            # 既存の出版社リストを取得して選択肢にする
+            existing_publishers = list(df_items['出版社'].unique()) if '出版社' in df_items.columns else []
+            pub_select = st.selectbox("出版社 *", options=existing_publishers + ["その他（手入力）"])
+            
+            # 手入力の場合のテキストボックス
+            pub_input = ""
+            if pub_select == "その他（手入力）":
+                pub_input = st.text_input("出版社名を入力")
+            
             isbn = st.text_input("ISBN")
             c1, c2, c3 = st.columns(3)
             stock = c1.number_input("初期在庫 *", 0)
             alert = c2.number_input("発注点", 10)
             loc = c3.text_input("場所")
+            
             if st.form_submit_button("登録"):
-                if not name: st.error("教科書名は必須")
+                final_pub = pub_input if pub_select == "その他（手入力）" else pub_select
+                
+                if not name or not final_pub:
+                    st.error("教科書名と出版社は必須です")
                 else:
                     new_id = int(df_items['商品ID'].max()) + 1
-                    ws_items.append_row([new_id, name, isbn, pub, stock, alert, loc])
+                    ws_items.append_row([new_id, name, isbn, final_pub, stock, alert, loc])
                     add_log(ws_logs, "新規登録", new_id, name, stock)
                     st.success("登録しました")
                     st.rerun()
