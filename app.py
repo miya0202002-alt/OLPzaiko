@@ -6,133 +6,125 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整（GAS/Bootstrap風デザイン再現）
+# 設定・デザイン調整（スマホ18:9 完全対応版）
 # ---------------------------------------------------------
 
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
 
-# カスタムCSS：提供されたHTML/CSSをStreamlit用に移植
+# カスタムCSS：スマホの画面幅に絶対収めるための強力な設定
 st.markdown("""
 <style>
-    /* ベースフォント（HTMLと同じHelvetica Neue） */
-    body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; color: #333; }
+    /* 全体のリセットとフォント */
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* アプリ全体のコンテナ調整 */
+    /* ★重要：スマホの左右の余白を極限まで削る */
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 5rem;
-        max-width: 1000px;
+        padding-top: 1rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 0.2rem !important;
+        padding-right: 0.2rem !important;
+        max-width: 100% !important;
     }
 
-    /* 検索バーと更新ボタンのエリア */
+    /* 検索バー周り */
     .control-panel {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        margin-bottom: 10px;
+        padding: 0 5px;
     }
+    div[data-testid="stTextInput"] { margin-bottom: 0px; }
 
-    /* テーブルヘッダー（HTMLの .table-dark を再現） */
+    /* テーブルヘッダー（黒背景・白文字） */
     .table-header {
-        background-color: #212529; /* Bootstrap dark */
+        background-color: #212529;
         color: #fff;
-        padding: 12px 5px;
+        padding: 6px 2px;
         font-weight: bold;
-        font-size: 0.9em;
-        border-radius: 5px 5px 0 0;
+        font-size: 0.75rem; /* スマホ用に小さく */
+        border-radius: 4px 4px 0 0;
         display: flex;
         align-items: center;
+        margin-top: 5px;
     }
-
-    /* 行のデザイン（HTMLの .table-hover を再現） */
+    
+    /* 行のデザイン（強制1行・高さ固定） */
     .row-container {
         background-color: #fff;
-        border-bottom: 1px solid #dee2e6;
-        border-left: 1px solid #dee2e6;
-        border-right: 1px solid #dee2e6;
-        padding: 10px 5px;
+        border-bottom: 1px solid #eee;
+        border-left: 1px solid #eee;
+        border-right: 1px solid #eee;
+        padding: 4px 0;
+        height: 45px; /* 高さを固定してガタつき防止 */
         display: flex;
         align-items: center;
-    }
-    .row-container:last-child {
-        border-radius: 0 0 5px 5px;
+        overflow: hidden; /* はみ出し防止 */
     }
 
-    /* 在庫不足時のスタイル（HTMLの .low-stock を再現） */
-    .bg-alert { background-color: #fff3f3 !important; }
-    .text-alert { color: #d63031; font-weight: bold; }
-    .badge-alert {
-        background-color: #dc3545;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.7em;
-        margin-left: 5px;
-    }
-
-    /* テキストスタイル */
-    .book-title { font-weight: bold; font-size: 1.0em; display: block; line-height: 1.2; }
-    .book-meta { font-size: 0.8em; color: #6c757d; margin-top: 3px; display: block; }
-    .stock-display { font-size: 1.2em; font-weight: bold; text-align: center; }
-
-    /* 入力欄（数量）のデザイン */
-    div[data-testid="stNumberInput"] input {
-        text-align: center !important;
-        padding: 5px !important;
-        height: 2.2em !important;
-    }
-    /* ラベルを消した時の余白削除 */
-    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
-    /* 上下の矢印を消す */
-    button[kind="secondaryForm"] { display: none !important; }
-
-    /* ボタンデザインの強制上書き */
-    div[data-testid="column"] button {
-        border-radius: 4px;
+    /* 教科書名の省略設定（これが重要） */
+    .book-title {
         font-weight: bold;
-        border: none;
-        height: 2.2em;
-        width: 100%;
-        padding: 0;
-        font-size: 0.9em;
-    }
-
-    /* 入庫ボタン（HTMLの .btn-success #28a745 を再現） */
-    /* StreamlitのSecondaryボタンを緑にする */
-    button[kind="secondary"] {
-        background-color: #28a745 !important;
-        color: white !important;
-        border: 1px solid #28a745 !important;
+        font-size: 0.85rem;
+        white-space: nowrap;      /* 改行しない */
+        overflow: hidden;         /* はみ出た部分は隠す */
+        text-overflow: ellipsis;  /* ...にする */
+        display: block;
+        color: #333;
     }
     
-    /* 出庫ボタン（HTMLの .btn-outline-danger 風だが、スマホで見やすく塗りつぶし #dc3545） */
-    /* StreamlitのPrimaryボタンを赤にする */
-    button[kind="primary"] {
-        background-color: #dc3545 !important;
-        color: white !important;
-        border: 1px solid #dc3545 !important;
+    /* 在庫数と不足表示 */
+    .stock-val { font-weight: bold; font-size: 0.9rem; text-align: center; display: block; }
+    .text-alert { color: #e74c3c !important; } /* 朱色 */
+    .badge-alert {
+        font-size: 0.6rem;
+        color: #e74c3c;
+        font-weight: bold;
+        display: block;
+        line-height: 1;
     }
 
-    /* 更新ボタンだけはグレー（Bootstrap secondary）に戻す */
-    div.stHorizontalBlock button[kind="secondary"] {
-        background-color: #6c757d !important;
-        color: white !important;
-        border: 1px solid #6c757d !important;
-    }
-    
-    /* スマホでの横並び強制（Flexbox） */
+    /* Streamlitのレイアウト強制調整 */
     div[data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        gap: 5px !important;
+        flex-wrap: nowrap !important; /* 絶対に折り返さない */
+        gap: 2px !important;          /* 隙間を最小に */
+        align-items: center !important;
     }
     div[data-testid="column"] {
-        min-width: 0 !important;
+        min-width: 0 !important;      /* 幅の最小制限を解除 */
         flex: 1 1 auto !important;
+        padding: 0 !important;
     }
+
+    /* 数量入力欄の極小化 */
+    div[data-testid="stNumberInput"] input {
+        padding: 0 !important;
+        height: 1.8rem !important;
+        min-height: 1.8rem !important;
+        font-size: 0.8rem !important;
+        text-align: center !important;
+    }
+    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
+    button[kind="secondaryForm"] { display: none !important; }
+
+    /* ボタンの極小化 */
+    div[data-testid="column"] button {
+        padding: 0 !important;
+        height: 1.8rem !important;
+        min-height: 1.8rem !important;
+        font-size: 0.75rem !important;
+        border-radius: 3px;
+        border: none;
+        width: 100%;
+    }
+
+    /* 色設定 */
+    button[kind="secondary"] { background-color: #28a745 !important; color: white !important; } /* 緑 */
+    button[kind="primary"] { background-color: #e74c3c !important; color: white !important; } /* 朱色 */
+    div.stHorizontalBlock button[kind="secondary"] { /* 更新ボタンはグレー */
+        background-color: #6c757d !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    /* 不足時の行背景 */
+    .bg-alert { background-color: #fff8f8; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -159,201 +151,167 @@ def load_data():
         items_data = ws_items.get_all_values()
         if not items_data: return None, None, pd.DataFrame(), None, pd.DataFrame()
         df_items = pd.DataFrame(items_data[1:], columns=items_data[0])
-        
         ws_logs = sh.worksheet('入出庫履歴')
         logs_data = ws_logs.get_all_values()
         if not logs_data:
             df_logs = pd.DataFrame(columns=['ログID', '日時', '操作', '商品ID', '変動数', '備考'])
         else:
             df_logs = pd.DataFrame(logs_data[1:], columns=logs_data[0])
-        
         return sh, ws_items, df_items, ws_logs, df_logs
-    except Exception as e:
-        st.error(f"接続エラー: {e}")
-        return None, None, None, None, None
+    except: return None, None, None, None, None
 
 def main():
-    # ヘッダー（アイコン付き）
-    st.markdown("""<h2 class="mb-4">📚 教科書在庫管理</h2>""", unsafe_allow_html=True)
+    st.markdown("<h5>📚 教科書在庫管理</h5>", unsafe_allow_html=True)
     
     sh, ws_items, df_items, ws_logs, df_logs = load_data()
     if sh is None: return
 
-    # データ前処理
+    # データ処理
     df_items.columns = df_items.columns.str.strip()
-    cols_to_num = ['商品ID', '現在在庫数', '発注点']
-    for col in cols_to_num:
+    for col in ['商品ID', '現在在庫数', '発注点']:
         if col in df_items.columns:
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # ---------------------------------------------------------
-    # 操作パネル（HTMLのボタン配置を再現）
-    # ---------------------------------------------------------
-    c_update, c_search = st.columns([1, 4])
-    with c_update:
+    # 操作パネル
+    c_upd, c_src = st.columns([1.2, 3.8])
+    with c_upd:
         if st.button("↻ 更新"): st.rerun()
-    with c_search:
-        search_query = st.text_input("検索", placeholder="教科書名、出版社など...", label_visibility="collapsed")
+    with c_src:
+        search_query = st.text_input("src", placeholder="検索...", label_visibility="collapsed")
 
     # 並べ替え
-    sort_mode = st.radio("", ["追加日順", "在庫少ない順"], horizontal=True, label_visibility="collapsed")
-    if sort_mode == "追加日順":
+    sort = st.radio("", ["追加日順", "在庫順"], horizontal=True, label_visibility="collapsed")
+    if sort == "追加日順":
         if '商品ID' in df_items.columns: df_items = df_items.sort_values('商品ID', ascending=False)
-    elif sort_mode == "在庫少ない順":
+    elif sort == "在庫順":
         df_items = df_items.sort_values('現在在庫数', ascending=True)
 
     if search_query:
         mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
-        df_display = df_items[mask]
+        df = df_items[mask]
     else:
-        df_display = df_items
+        df = df_items
 
-    # タブ
-    tab_list, tab_add = st.tabs(["在庫リスト", "新規登録"])
+    tab1, tab2 = st.tabs(["📦 在庫", "➕ 登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（HTMLのデザインとご要望の列構成を統合）
+    # 在庫リスト（絶対1行レイアウト）
     # ---------------------------------------------------------
-    with tab_list:
-        # ヘッダー行（黒背景）
+    with tab1:
+        # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:3.5; padding-left:5px;">教科書情報</div>
+            <div style="flex:4; padding-left:2px;">教科書名</div>
             <div style="flex:1; text-align:center;">在庫</div>
             <div style="flex:1.2; text-align:center;">数</div>
-            <div style="flex:1; text-align:center;">入庫</div>
-            <div style="flex:1; text-align:center;">出庫</div>
+            <div style="flex:1.2; text-align:center;">入</div>
+            <div style="flex:1.2; text-align:center;">出</div>
         </div>
         """, unsafe_allow_html=True)
 
-        if df_display.empty:
-            st.info("データがありません")
-        
-        for index, row in df_display.iterrows():
-            item_id = int(row['商品ID'])
+        for i, row in df.iterrows():
+            id_ = int(row['商品ID'])
             name = row['教科書名']
             stock = int(row['現在在庫数'])
             alert = int(row['発注点'])
-            pub = row['出版社']
-            loc = row['保管場所']
-            isbn = row.get('ISBNコード', '-')
             
             is_low = stock <= alert
-            bg_class = "bg-alert" if is_low else ""
-            stock_color = "text-alert" if is_low else ""
-            badge = '<span class="badge-alert">不足</span>' if is_low else ""
+            bg_cls = "bg-alert" if is_low else ""
+            txt_cls = "text-alert" if is_low else ""
+            alert_msg = '<span class="badge-alert">不足</span>' if is_low else ""
 
-            # 1行のコンテナ
-            st.markdown(f'<div class="row-container {bg_class}">', unsafe_allow_html=True)
+            # 行コンテナ開始
+            st.markdown(f'<div class="row-container {bg_cls}">', unsafe_allow_html=True)
             
-            # 列レイアウト [情報, 在庫, 数, 入, 出]
-            c1, c2, c3, c4, c5 = st.columns([3.5, 1, 1.2, 1, 1], gap="small")
+            # カラム比率：名前エリアを確保しつつ、他を最小限に
+            c1, c2, c3, c4, c5 = st.columns([4, 1, 1.2, 1.2, 1.2], gap="small")
             
             with c1:
-                # 教科書情報（出版社や場所もここにまとめて省スペース化）
-                st.markdown(f"""
-                <div style="padding-left:5px; line-height:1.2;">
-                    <span class="book-title">{name}</span>
-                    <span class="book-meta">{pub} | {loc} <br> <i class="bi bi-upc"></i> {isbn}</span>
-                </div>
-                """, unsafe_allow_html=True)
+                # 教科書名（はみ出たら...になる）
+                st.markdown(f'<span class="book-title" title="{name}">{name}</span>', unsafe_allow_html=True)
             
             with c2:
-                # 在庫数
+                # 在庫数と不足表示（朱色）
                 st.markdown(f"""
-                <div style="text-align:center;">
-                    <span class="stock-display {stock_color}">{stock}</span>
-                    {badge}
+                <div style="text-align:center; line-height:1;">
+                    <span class="stock-val {txt_cls}">{stock}</span>
+                    {alert_msg}
                 </div>
                 """, unsafe_allow_html=True)
 
             with c3:
-                # 数量入力：初期値1固定
-                qty = st.number_input("qty", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
+                # 数量：初期値1固定
+                qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{id_}")
                 
             with c4:
-                # 入庫（緑）
-                if st.button("入", key=f"in_{item_id}"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
+                if st.button("入", key=f"in_{id_}"):
+                    upd(ws_items, ws_logs, id_, name, stock, qty, "入庫")
             
             with c5:
-                # 出庫（赤）
-                if st.button("出", key=f"out_{item_id}", type="primary"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
+                if st.button("出", key=f"out_{id_}", type="primary"):
+                    upd(ws_items, ws_logs, id_, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ---------------------------------------------------------
     # 新規登録
     # ---------------------------------------------------------
-    with tab_add:
-        st.markdown("<h5><i class='bi bi-plus-circle'></i> 新しい教科書の登録</h5>", unsafe_allow_html=True)
+    with tab2:
         with st.form("add"):
-            # GSSから候補を取得
-            existing_names = list(df_items['教科書名'].unique()) if '教科書名' in df_items.columns else []
-            name_select = st.selectbox("教科書名", options=existing_names + ["新規入力"], index=None, placeholder="教科書名を選択してください...")
-            name_input = ""
-            if name_select == "新規入力":
-                name_input = st.text_input("新しい教科書名を入力")
+            exist_n = list(df_items['教科書名'].unique()) if '教科書名' in df_items.columns else []
+            n_sel = st.selectbox("教科書名", options=exist_n+["新規"], index=None, placeholder="選択...")
+            n_inp = ""
+            if n_sel == "新規": n_inp = st.text_input("名称入力")
             
-            existing_pubs = list(df_items['出版社'].unique()) if '出版社' in df_items.columns else []
-            pub_select = st.selectbox("出版社", options=existing_pubs + ["その他"], index=None, placeholder="出版社を選択してください...")
-            pub_input = ""
-            if pub_select == "その他":
-                pub_input = st.text_input("出版社名を入力")
-                
-            c1, c2 = st.columns(2)
-            isbn = c1.text_input("ISBN")
-            loc = c2.text_input("保管場所")
+            exist_p = list(df_items['出版社'].unique()) if '出版社' in df_items.columns else []
+            p_sel = st.selectbox("出版社", options=exist_p+["その他"], index=None, placeholder="選択...")
+            p_inp = ""
+            if p_sel == "その他": p_inp = st.text_input("出版社入力")
             
-            c3, c4 = st.columns(2)
-            # 初期値「1」
-            stock = c3.number_input("初期在庫 *", min_value=1, value=1)
-            alert = c4.number_input("発注点", min_value=1, value=1)
+            c_a, c_b = st.columns(2)
+            isbn = c_a.text_input("ISBN")
+            loc = c_b.text_input("保管")
+            
+            c_c, c_d = st.columns(2)
+            # 初期値1
+            stock = c_c.number_input("初期在庫", min_value=1, value=1)
+            alert = c_d.number_input("発注点", min_value=1, value=1)
             
             if st.form_submit_button("登録", use_container_width=True):
-                final_name = name_input if name_select == "新規入力" else name_select
-                final_pub = pub_input if pub_select == "その他" else pub_select
-                
-                if not final_name or not final_pub:
-                    st.error("教科書名と出版社は必須です")
+                fin_n = n_inp if n_sel == "新規" else n_sel
+                fin_p = p_inp if p_sel == "その他" else p_sel
+                if not fin_n or not fin_p: st.error("必須項目不足")
                 else:
-                    new_id = int(df_items['商品ID'].max()) + 1 if not df_items.empty else 1
-                    new_row = [int(new_id), str(final_name), str(isbn), str(final_pub), int(stock), int(alert), str(loc)]
-                    ws_items.append_row(new_row)
-                    add_log(ws_logs, "新規登録", new_id, final_name, stock)
-                    st.success(f"「{final_name}」を登録しました")
+                    new_id = int(df_items['商品ID'].max())+1 if not df_items.empty else 1
+                    ws_items.append_row([new_id, str(fin_n), str(isbn), str(fin_p), int(stock), int(alert), str(loc)])
+                    add_log(ws_logs, "新規登録", new_id, fin_n, stock)
+                    st.success("登録完了")
                     st.rerun()
 
-def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity, action_type):
-    new_stock = current_stock + quantity if action_type == "入庫" else current_stock - quantity
-    if new_stock < 0:
-        st.error("在庫が足りません")
+def upd(ws_i, ws_l, id_, name, curr, qty, type_):
+    new = curr + qty if type_ == "入庫" else curr - qty
+    if new < 0:
+        st.error("在庫不足")
         return
     try:
-        cell = ws_items.find(str(item_id), in_column=1)
-        ws_items.update_cell(cell.row, 5, new_stock)
-        change = quantity if action_type == "入庫" else -quantity
-        add_log(ws_logs, action_type, item_id, item_name, change)
-        st.toast(f"{action_type}完了！ (現在: {new_stock}冊)")
+        cell = ws_i.find(str(id_), in_column=1)
+        ws_i.update_cell(cell.row, 5, new)
+        change = qty if type_ == "入庫" else -qty
+        add_log(ws_l, type_, id_, name, change)
+        st.toast(f"{type_}完了")
         st.rerun()
-    except Exception as e:
-        st.error(f"エラー: {e}")
+    except: st.error("エラー")
 
-def add_log(ws_logs, action_type, item_id, item_name, change_val):
+def add_log(ws_l, type_, id_, name, change):
     try:
-        all_vals = ws_logs.col_values(1)
-        if len(all_vals) > 1:
-            last_id = all_vals[-1]
-            new_log_id = int(last_id) + 1 if str(last_id).isdigit() else 1
-        else:
-            new_log_id = 1
-        now = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-        row_data = [int(new_log_id), str(now), str(action_type), int(item_id), int(change_val), str(item_name)]
-        # append_row を使用して確実に記録
-        ws_logs.append_row(row_data)
-    except Exception as e:
-        st.error(f"ログ記録エラー: {e}")
+        vals = ws_l.col_values(1)
+        new_id = int(vals[-1])+1 if len(vals)>1 and str(vals[-1]).isdigit() else 1
+        now = datetime.now().strftime("%Y/%m/%d %H:%M")
+        ws_l.append_row([int(new_log_id), str(now), str(type_), int(id_), int(change), str(name)])
+    except:
+        # 万が一のエラー時はID=1で記録トライ
+        now = datetime.now().strftime("%Y/%m/%d %H:%M")
+        ws_l.append_row([1, str(now), str(type_), int(id_), int(change), str(name)])
 
 if __name__ == "__main__":
     main()
