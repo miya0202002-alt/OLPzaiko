@@ -8,51 +8,80 @@ from datetime import datetime
 # ---------------------------------------------------------
 # 設定
 # ---------------------------------------------------------
-st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
 
 # ---------------------------------------------------------
-# CSS (スマホ最適化・固定フッター・ズレ防止)
+# CSS (徹底的なレイアウト調整)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-    /* 全体設定 */
+    /* 1. 全体設定とPCでの幅制限 */
     body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
+    
     .block-container { 
-        padding-top: 1rem; padding-bottom: 150px !important; /* 下に余白を作ってパネルと被らないように */
-        padding-left: 0.5rem !important; padding-right: 0.5rem !important; 
-        max-width: 100% !important;
+        padding-top: 4.5rem !important; /* タイトル用余白拡大 */
+        padding-bottom: 100px !important; /* 下部パネル用余白 */
+        padding-left: 0.5rem !important; 
+        padding-right: 0.5rem !important; 
     }
 
-    /* ▼▼▼ 下部固定パネル（サイドバーを改造） ▼▼▼ */
+    /* PC画面（幅640px以上）の時は、画面の50%の幅にする */
+    @media (min-width: 640px) {
+        .block-container {
+            max-width: 50vw !important; /* 画面の半分 */
+            margin: 0 auto !important;
+        }
+        /* 下部パネルもPCでは幅を合わせる */
+        section[data-testid="stSidebar"] {
+            width: 50vw !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+        }
+    }
+
+    /* 2. タイトル */
+    h3 { 
+        font-size: 1.5rem !important; 
+        margin-bottom: 1rem; 
+        font-weight: bold;
+        line-height: 1.4;
+    }
+
+    /* 3. 下部固定パネル（リストの1行と同じくらいのサイズに） */
     section[data-testid="stSidebar"] {
         position: fixed !important;
         bottom: 0 !important;
         top: auto !important;
         left: 0 !important;
-        width: 100% !important;
         height: auto !important;
-        min-width: 100% !important;
         background-color: #fff !important;
-        border-top: 2px solid #28a745 !important; /* 選択状態がわかるように緑のライン */
-        box-shadow: 0 -4px 10px rgba(0,0,0,0.1) !important;
+        border-top: 1px solid #ccc !important;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.05) !important;
         z-index: 99999 !important;
-        padding: 10px !important;
-    }
-    /* サイドバーの余計なパーツを消す */
-    div[data-testid="stSidebarNav"], button[kind="header"] { display: none !important; }
-    section[data-testid="stSidebar"] .block-container { padding: 0 !important; padding-bottom: 0 !important; }
-
-    /* ▲▲▲ ここまで ▲▲▲ */
-
-    /* ヘッダーとリストのズレ防止（共通クラス） */
-    .grid-row {
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #eee;
-        padding: 5px 0;
+        padding: 5px 10px !important; /* 余白を削ってスリムに */
     }
     
-    /* ヘッダーのデザイン */
+    /* サイドバーの余計なパーツ（折りたたみ、ヘッダー）を完全削除 */
+    div[data-testid="stSidebarNav"], 
+    button[kind="header"],
+    div[data-testid="collapsedControl"] { 
+        display: none !important; 
+    }
+    section[data-testid="stSidebar"] .block-container { 
+        padding: 0 !important; 
+        max-width: 100% !important; 
+        width: 100% !important;
+    }
+    
+    /* パネル内のコンテンツ配置（横並び） */
+    .footer-content {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        width: 100%;
+    }
+
+    /* 4. ヘッダーとリストのデザイン */
     .header-box {
         background-color: #222;
         color: white;
@@ -61,36 +90,59 @@ st.markdown("""
         text-align: center;
         padding: 8px 2px;
         border-radius: 4px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    /* 教科書選択ボタン（リスト内のボタン） */
+    /* 教科書選択ボタン（リスト内の行） */
     div.row-btn button {
         background-color: white !important;
         color: #333 !important;
-        border: 1px solid #ddd !important;
+        border: 1px solid #eee !important;
         text-align: left !important;
         font-weight: bold !important;
         font-size: 13px !important;
-        height: auto !important;
-        padding: 10px !important;
-        white-space: normal !important; /* 折り返し許可 */
+        min-height: 45px !important; /* 行の高さを確保 */
+        padding: 5px 10px !important;
+        white-space: normal !important;
         line-height: 1.2 !important;
+        width: 100%;
     }
     div.row-btn button:focus {
         border-color: #28a745 !important;
-        background-color: #e6f9e6 !important;
+        background-color: #f0fff0 !important;
     }
 
-    /* 下部パネル内のボタン */
-    .footer-btn-in button {
-        background-color: #28a745 !important; color: white !important; border: none; height: 45px;
-    }
-    .footer-btn-out button {
-        background-color: #e74c3c !important; color: white !important; border: none; height: 45px;
+    /* 5. 下部パネル内のボタン・入力欄（高さを揃える） */
+    .footer-btn button {
+        height: 38px !important;
+        font-size: 12px !important;
+        font-weight: bold !important;
+        border-radius: 4px !important;
+        padding: 0 !important;
     }
     
     /* 入力欄 */
-    input { text-align: center; font-size: 16px !important; }
+    div[data-testid="stNumberInput"] input {
+        height: 38px !important;
+        text-align: center !important;
+        font-size: 14px !important;
+        padding: 0 !important;
+    }
+    div[data-testid="stNumberInput"] { margin: 0 !important; }
+
+    /* 色設定 */
+    .btn-in button { background-color: #28a745 !important; color: white !important; border: none; }
+    .btn-out button { background-color: #e74c3c !important; color: white !important; border: none; }
+    
+    /* 無効時のスタイル */
+    button:disabled {
+        background-color: #e0e0e0 !important;
+        color: #999 !important;
+        border: 1px solid #ccc !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -131,20 +183,16 @@ def load_data():
         return None, None, None, None, None
 
 def main():
-    # セッション状態の初期化（選択した教科書を記憶するため）
     if 'selected_book_id' not in st.session_state:
         st.session_state.selected_book_id = None
-    if 'selected_book_name' not in st.session_state:
-        st.session_state.selected_book_name = ""
-    if 'selected_book_stock' not in st.session_state:
+        st.session_state.selected_book_name = "（未選択）"
         st.session_state.selected_book_stock = 0
 
-    st.markdown("### 教科書在庫管理")
+    st.markdown("### 教科書在庫管理表") # 見切れ防止対策済み
     
     sh, ws_items, df_items, ws_logs, df_logs = load_data()
     if sh is None: return
 
-    # データ前処理
     df_items.columns = df_items.columns.str.strip()
     cols_to_num = ['商品ID', '現在在庫数', '発注点']
     for col in cols_to_num:
@@ -157,29 +205,26 @@ def main():
         search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
     with c_update:
         if st.button("↻ 更新"): 
-            st.session_state.selected_book_id = None # 更新時に選択解除
+            st.session_state.selected_book_id = None
             st.rerun()
 
-    # タブ
     tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（タップ選択式）
+    # 在庫リスト（状態列削除・タップ選択式）
     # ---------------------------------------------------------
     with tab_list:
-        # フィルタリング
         if search_query:
             mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
             df_display = df_items[mask]
         else:
             df_display = df_items
 
-        # ヘッダー行（columnsを使用し、データ行と完全に同じ比率にする）
-        # 比率: [教科書名ボタン(3.5), 在庫数(1), 不足アラート(1)]
-        h1, h2, h3 = st.columns([3.5, 1, 1])
-        h1.markdown('<div class="header-box" style="text-align:left; padding-left:10px;">教科書名をタップして選択</div>', unsafe_allow_html=True)
+        # ヘッダー行（状態列を削除し、在庫列を少し広げる）
+        # 比率: [教科書名(4), 在庫(1.5)] -> 合計5.5
+        h1, h2 = st.columns([4, 1.5])
+        h1.markdown('<div class="header-box" style="justify-content:flex-start; padding-left:10px;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
         h2.markdown('<div class="header-box">在庫</div>', unsafe_allow_html=True)
-        h3.markdown('<div class="header-box">状態</div>', unsafe_allow_html=True)
 
         for index, row in df_display.iterrows():
             item_id = int(row['商品ID'])
@@ -188,62 +233,66 @@ def main():
             alert = int(row['発注点'])
             
             is_low = stock <= alert
-            alert_text = "⚠️不足" if is_low else "OK"
-            alert_color = "red" if is_low else "green"
+            # 在庫が少なければ朱色、通常は黒
+            stock_color = "#e74c3c" if is_low else "#333"
+            stock_weight = "bold" if is_low else "bold"
 
-            # 行の表示（すべて st.columns で統一＝ズレない）
-            c1, c2, c3 = st.columns([3.5, 1, 1])
+            # データ行
+            c1, c2 = st.columns([4, 1.5])
             
             with c1:
-                # ★ここがポイント：教科書名をボタンにする
-                # 押すと session_state に情報が入り、画面下のパネルが更新される
-                # div.row-btn クラスでCSS装飾（テキストっぽく見せる）
+                # 教科書名ボタン
                 st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                if st.button(f"{name}", key=f"sel_{item_id}", use_container_width=True):
+                # 選択中の教科書は色を変えてもいいが、シンプルに
+                label = f"{name}"
+                if st.button(label, key=f"sel_{item_id}", use_container_width=True):
                     st.session_state.selected_book_id = item_id
                     st.session_state.selected_book_name = name
                     st.session_state.selected_book_stock = stock
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with c2:
-                # 在庫数
-                st.markdown(f'<div style="text-align:center; padding-top:15px; font-weight:bold; font-size:14px;">{stock}</div>', unsafe_allow_html=True)
-            
-            with c3:
-                # 状態
-                st.markdown(f'<div style="text-align:center; padding-top:15px; font-weight:bold; color:{alert_color}; font-size:12px;">{alert_text}</div>', unsafe_allow_html=True)
+                # 在庫数（朱色対応）
+                st.markdown(f"""
+                <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
+                    <span style="font-size:16px; font-weight:{stock_weight}; color:{stock_color};">{stock}</span>
+                </div>
+                """, unsafe_allow_html=True)
 
             st.markdown("<hr style='margin:0; border-top:1px solid #eee;'>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # 下部固定操作パネル（サイドバーを利用）
+    # 下部固定操作パネル（常時表示・コンパクト・折りたたみなし）
     # ---------------------------------------------------------
     with st.sidebar:
+        # 選択中の教科書を表示（小さく）
+        display_name = st.session_state.selected_book_name
         if st.session_state.selected_book_id is None:
-            st.info("👆 上のリストから教科書をタップしてください")
-        else:
-            # 選択中の教科書名を表示
-            st.markdown(f"**選択中:** {st.session_state.selected_book_name}")
-            st.caption(f"現在の在庫: {st.session_state.selected_book_stock} 冊")
+            display_name = "（リストから選択してください）"
             
-            # 操作エリア
-            c_qty, c_in, c_out = st.columns([1.5, 1.5, 1.5], gap="small")
+        st.markdown(f"<div style='font-size:11px; color:#666; margin-bottom:2px;'>選択中: <b>{display_name}</b></div>", unsafe_allow_html=True)
+        
+        # 操作エリア：数量(1.2) 入庫(1.5) 出庫(1.5)
+        # コンパクトに横並び
+        c_qty, c_in, c_out = st.columns([1.2, 1.5, 1.5], gap="small")
+        
+        # 選択されていない時は disabled=True
+        is_disabled = st.session_state.selected_book_id is None
+        
+        with c_qty:
+            qty = st.number_input("qty", min_value=1, value=1, label_visibility="collapsed")
             
-            with c_qty:
-                # 数量（初期値1・矢印あり）
-                qty = st.number_input("数", min_value=1, value=1, label_visibility="collapsed")
+        with c_in:
+            st.markdown('<div class="footer-btn btn-in">', unsafe_allow_html=True)
+            if st.button("入庫", key="footer_in", disabled=is_disabled, use_container_width=True):
+                update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            with c_in:
-                st.markdown('<div class="footer-btn-in">', unsafe_allow_html=True)
-                if st.button("入庫", use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            with c_out:
-                st.markdown('<div class="footer-btn-out">', unsafe_allow_html=True)
-                if st.button("出庫", use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "出庫")
-                st.markdown('</div>', unsafe_allow_html=True)
+        with c_out:
+            st.markdown('<div class="footer-btn btn-out">', unsafe_allow_html=True)
+            if st.button("出庫", key="footer_out", disabled=is_disabled, use_container_width=True):
+                update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "出庫")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # ---------------------------------------------------------
     # 新規登録タブ
@@ -294,7 +343,6 @@ def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity,
         change = quantity if action_type == "入庫" else -quantity
         add_log(ws_logs, action_type, item_id, item_name, change)
         
-        # 成功時にセッション情報の在庫も更新してリロード
         st.session_state.selected_book_stock = new_stock
         st.toast(f"{action_type}完了 (残{new_stock})")
         st.rerun()
