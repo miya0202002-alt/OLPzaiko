@@ -11,23 +11,24 @@ from datetime import datetime
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
 
 # ---------------------------------------------------------
-# CSS (スマホ完全対応・強制横並び・フッター固定)
+# CSS (スマホ完全対応・フッター極小化・ボタン感削除)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
     /* 1. 全体設定 */
     body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* 画面の余白設定（タイトル見切れ防止） */
+    /* 画面幅の制限と余白設定 */
     .block-container { 
-        padding-top: 1rem !important; 
-        padding-bottom: 100px !important; /* フッター用余白 */
+        padding-top: 3rem !important; 
+        padding-bottom: 100px !important; /* フッターのために空ける */
         padding-left: 0.5rem !important; 
         padding-right: 0.5rem !important; 
         max-width: 100% !important;
+        overflow-x: hidden !important; /* 横スクロール禁止 */
     }
 
-    /* PC画面（幅640px以上）の時は中央寄せ */
+    /* PC画面用（幅制限） */
     @media (min-width: 640px) {
         .block-container {
             max-width: 600px !important;
@@ -40,105 +41,105 @@ st.markdown("""
         }
     }
 
-    /* 2. タイトルボタンのデザイン（テキストっぽく見せる） */
-    .title-btn button {
-        background: none !important;
-        border: none !important;
-        padding: 0 !important;
-        font-size: 1.5rem !important;
-        font-weight: bold !important;
-        color: #333 !important;
-        text-align: left !important;
-        margin-bottom: 1rem !important;
-    }
-    .title-btn button:hover {
-        color: #555 !important;
+    /* 2. タイトル（大きく、絵文字なし） */
+    h3 { 
+        font-size: 1.8rem !important; 
+        margin-bottom: 0.5rem; 
+        font-weight: 900; 
+        color: #111;
     }
 
-    /* 3. ★重要★ スマホでの強制横並び設定（縦積みを防ぐ） */
+    /* 3. 強制横並び & はみ出し防止（Flexbox） */
     div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important; /* 強制的に横並び */
-        flex-wrap: nowrap !important;   /* 折り返し禁止 */
-        gap: 4px !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0px !important; /* 隙間ゼロ */
         align-items: center !important;
         width: 100% !important;
     }
     div[data-testid="column"] {
-        min-width: 0px !important; /* 縮小限界をなくす */
-        padding: 0 1px !important;
+        min-width: 0px !important;
+        padding: 0 2px !important;
         overflow: hidden !important;
-        flex: 1 1 auto !important; /* 幅を自動分配 */
+        flex: 1 1 auto !important;
     }
 
-    /* 4. 下部固定パネル（サイドバー改造） */
+    /* 4. 下部固定パネル（サイドバー改造・高さ1/10以下へ） */
     section[data-testid="stSidebar"] {
         position: fixed !important;
         bottom: 0 !important;
         top: auto !important;
         left: 0 !important;
         height: auto !important;
-        background-color: #fff !important;
-        border-top: 1px solid #ccc !important;
-        box-shadow: 0 -2px 8px rgba(0,0,0,0.1) !important;
+        min-height: 0 !important;
+        background-color: #fcfcfc !important;
+        border-top: 1px solid #ddd !important;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.05) !important;
         z-index: 999999 !important;
-        padding: 0px !important;
+        padding: 0 !important;
     }
     
+    /* サイドバー内部の余白削除 */
     section[data-testid="stSidebar"] .block-container {
-        padding: 8px 10px !important;
+        padding: 10px 10px 15px 10px !important;
         margin: 0 !important;
         overflow: hidden !important;
     }
     
-    /* ★折りたたみボタン等を完全に消す強力な指定 */
+    /* ★折りたたみボタン等を抹消する最強設定★ */
     div[data-testid="stSidebarNav"], 
     button[kind="header"],
     div[data-testid="collapsedControl"], 
-    [data-testid="stSidebarCollapsedControl"] { 
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stSidebarUserContent"] > div:first-child { 
         display: none !important; 
         visibility: hidden !important;
         height: 0 !important;
         width: 0 !important;
     }
 
-    /* 5. ヘッダーとリストのデザイン */
-    .header-box {
+    /* 5. ヘッダーとリストのデザイン（ズレ防止） */
+    .header-text {
         background-color: #222;
         color: white;
         font-weight: bold;
         font-size: 11px;
         text-align: center;
-        padding: 8px 2px;
+        padding: 8px 0;
         border-radius: 4px;
         width: 100%;
         display: block;
     }
 
+    /* リスト内のボタン（教科書名）：ボタン感を消して「ただの文字」に見せる */
     div.row-btn button {
-        background-color: white !important;
+        background-color: transparent !important; /* 背景透明 */
+        border: none !important;                  /* 枠線なし */
+        box-shadow: none !important;              /* 影なし */
         color: #333 !important;
-        border: 1px solid #eee !important;
         text-align: left !important;
         font-weight: bold !important;
-        font-size: 13px !important;
-        min-height: 42px !important;
-        padding: 5px 8px !important;
-        white-space: normal !important;
-        line-height: 1.2 !important;
+        font-size: 15px !important;               /* 大きく！ */
+        padding: 5px 0 !important;
+        white-space: normal !important;           /* 折り返し */
+        line-height: 1.3 !important;
         width: 100% !important;
+        display: block !important;
+        height: auto !important;
+        min-height: auto !important;
     }
-    div.row-btn button:focus {
-        border-color: #28a745 !important;
-        background-color: #f0fff0 !important;
+    /* 押した時の反応（薄いグレー） */
+    div.row-btn button:active, div.row-btn button:focus {
+        background-color: #f0f0f0 !important;
+        color: #000 !important;
     }
 
-    /* 6. フッター内のボタン・入力欄（高さを揃える・横一列） */
+    /* 6. フッター内のボタン・入力欄（高さを揃えてコンパクトに） */
     .footer-btn button {
         height: 40px !important;
-        font-size: 12px !important;
+        font-size: 14px !important;
         font-weight: bold !important;
-        border-radius: 4px !important;
+        border-radius: 6px !important;
         padding: 0 !important;
         margin: 0 !important;
         width: 100% !important;
@@ -147,20 +148,28 @@ st.markdown("""
     div[data-testid="stNumberInput"] input {
         height: 40px !important;
         text-align: center !important;
-        font-size: 14px !important;
+        font-size: 16px !important;
         padding: 0 !important;
     }
-    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
+    div[data-testid="stNumberInput"] { margin: 0 !important; }
 
     /* 色設定 */
-    .btn-in button { background-color: #28a745 !important; color: white !important; border: none; }
-    .btn-out button { background-color: #e74c3c !important; color: white !important; border: none; }
+    .btn-in button { 
+        background-color: white !important; 
+        color: #28a745 !important; 
+        border: 2px solid #28a745 !important; 
+    }
+    .btn-out button { 
+        background-color: white !important; 
+        color: #e74c3c !important; 
+        border: 2px solid #e74c3c !important; 
+    }
     
     /* 無効時のスタイル */
     button:disabled {
-        background-color: #e0e0e0 !important;
-        color: #999 !important;
-        border: 1px solid #ccc !important;
+        border-color: #ddd !important;
+        color: #ccc !important;
+        background-color: white !important;
     }
 
 </style>
@@ -204,16 +213,10 @@ def load_data():
 def main():
     if 'selected_book_id' not in st.session_state:
         st.session_state.selected_book_id = None
-        st.session_state.selected_book_name = "（未選択）"
+        st.session_state.selected_book_name = ""
         st.session_state.selected_book_stock = 0
 
-    # ★修正：タイトルをボタン化（押すとリセット）
-    # CSSクラス title-btn で見た目をテキスト風にしています
-    st.markdown('<div class="title-btn">', unsafe_allow_html=True)
-    if st.button("📚 教科書在庫管理", key="reset_title"):
-        st.session_state.selected_book_id = None
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("### 教科書在庫管理")
     
     sh, ws_items, df_items, ws_logs, df_logs = load_data()
     if sh is None: return
@@ -224,7 +227,9 @@ def main():
         if col in df_items.columns:
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # メニュー
+    # ---------------------------------------------------------
+    # メニュー切り替え（ラジオボタン）
+    # ---------------------------------------------------------
     menu = st.radio("メニュー", ["在庫リスト", "⊕教科書を追加"], horizontal=True, label_visibility="collapsed")
 
     # =========================================================
@@ -241,18 +246,33 @@ def main():
                 st.session_state.selected_book_id = None
                 st.rerun()
 
+        # 並べ替え機能（復活）
+        sort_mode = st.radio("", ["追加日順", "在庫少ない順", "名前順"], horizontal=True, label_visibility="collapsed")
+        
+        if sort_mode == "追加日順" and '商品ID' in df_items.columns:
+            df_items = df_items.sort_values('商品ID', ascending=False)
+        elif sort_mode == "在庫少ない順":
+            df_items = df_items.sort_values('現在在庫数', ascending=True)
+        elif sort_mode == "名前順":
+            df_items = df_items.sort_values('教科書名', ascending=True)
+
         if search_query:
             mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
             df_display = df_items[mask]
         else:
             df_display = df_items
 
-        # ヘッダー行
-        h_cols = st.columns([3.5, 1.5])
-        h_cols[0].markdown('<div class="header-box" style="text-align:left; padding-left:10px;">教科書名 (タップして選択)</div>', unsafe_allow_html=True)
-        h_cols[1].markdown('<div class="header-box">在庫</div>', unsafe_allow_html=True)
+        # --- ヘッダー行 ---
+        # 比率: [教科書名(4), 在庫(1.5)] -> 合計5.5でスマホ幅に収める
+        h1, h2 = st.columns([4, 1.5])
+        h1.markdown('<div class="header-text" style="text-align:left; padding-left:5px; background:none; color:#333;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
+        h2.markdown('<div class="header-text">在庫</div>', unsafe_allow_html=True)
+        st.markdown("<hr style='margin:0; border-top:2px solid #333;'>", unsafe_allow_html=True)
 
-        # データ一覧
+        # --- データ一覧 ---
+        if df_display.empty:
+            st.info("データがありません")
+
         for index, row in df_display.iterrows():
             item_id = int(row['商品ID'])
             name = row['教科書名']
@@ -261,38 +281,38 @@ def main():
             
             is_low = stock <= alert
             stock_color = "#e74c3c" if is_low else "#333"
-            stock_weight = "bold" if is_low else "bold"
-
-            cols = st.columns([3.5, 1.5])
             
-            with cols[0]:
+            # 行の表示
+            c1, c2 = st.columns([4, 1.5])
+            
+            with c1:
+                # 教科書名（ボタンだが、見た目はただのテキスト）
                 st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                label = f"{name}"
-                if st.button(label, key=f"sel_{item_id}", use_container_width=True):
+                # selected状態なら色を変えるなどのロジックも可能だが、シンプルに
+                if st.button(f"{name}", key=f"sel_{item_id}", use_container_width=True):
                     st.session_state.selected_book_id = item_id
                     st.session_state.selected_book_name = name
                     st.session_state.selected_book_stock = stock
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            with cols[1]:
+            with c2:
+                # 在庫数
                 st.markdown(f"""
                 <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
-                    <span style="font-size:16px; font-weight:{stock_weight}; color:{stock_color};">{stock}</span>
+                    <span style="font-size:18px; font-weight:bold; color:{stock_color};">{stock}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
             st.markdown("<hr style='margin:0; border-top:1px solid #eee;'>", unsafe_allow_html=True)
 
-        # --- フッター操作パネル（常時表示・1列固定・折りたたみなし） ---
+        # --- フッター操作パネル（コンパクト・折りたたみなし） ---
         with st.sidebar:
-            # 情報表示
-            display_name = st.session_state.selected_book_name
-            display_stock = f"(在庫: {st.session_state.selected_book_stock})" if st.session_state.selected_book_id else ""
-            st.markdown(f"<div style='font-size:11px; color:#555; margin-bottom:4px; white-space:nowrap; overflow:hidden;'>選択中: <b>{display_name}</b> {display_stock}</div>", unsafe_allow_html=True)
+            # 選択中の情報（1行で収める）
+            info_text = f"選択中: <b>{st.session_state.selected_book_name}</b>" if st.session_state.selected_book_id else "（リストから教科書を選択してください）"
+            st.markdown(f"<div style='font-size:12px; color:#555; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{info_text}</div>", unsafe_allow_html=True)
             
-            # ★修正：横一列に強制配置 (数量:1, 入庫:1.5, 出庫:1.5)
-            # CSSで flex-direction: row !important を指定済みなので、絶対に横並びになります
-            c_qty, c_in, c_out = st.columns([1, 1.5, 1.5], gap="small")
+            # 操作ボタン（比率 1:1.2:1.2）
+            c_qty, c_in, c_out = st.columns([1, 1.2, 1.2], gap="small")
             
             is_disabled = st.session_state.selected_book_id is None
             
@@ -312,7 +332,7 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
 
     # =========================================================
-    # 「⊕教科書を追加」モード
+    # 「教科書を追加」モード
     # =========================================================
     elif menu == "⊕教科書を追加":
         st.markdown("##### 新規登録")
@@ -360,6 +380,7 @@ def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity,
         change = quantity if action_type == "入庫" else -quantity
         add_log(ws_logs, action_type, item_id, item_name, change)
         
+        # セッション更新
         st.session_state.selected_book_stock = new_stock
         st.toast(f"{action_type}完了 (残{new_stock})")
         st.rerun()
