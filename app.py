@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整
+# 設定・デザイン調整（スマホ完全対応・自動調整版）
 # ---------------------------------------------------------
 
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
@@ -16,6 +16,8 @@ st.markdown("""
 <style>
     /* 1. 基本設定 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
+    
+    /* 左右の余白を最小限に（画面を広く使う） */
     .block-container { 
         padding-top: 0.5rem; 
         padding-bottom: 2rem; 
@@ -24,39 +26,36 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 2. タイトルの調整 */
-    h3 { 
-        font-size: 1.2rem !important; 
-        margin-bottom: 0.5rem; 
-        white-space: normal !important;
-        overflow: visible !important;
-    }
-
-    /* 3. 強制横並び設定 */
+    /* 2. 強制横並び設定 & 自動サイズ調整 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         gap: 2px !important;
         align-items: center !important;
+        width: 100% !important; /* 親要素に合わせて広がる */
     }
     div[data-testid="column"] {
-        min-width: 0px !important;
+        min-width: 0px !important; /* 限界まで縮小許可 */
         padding: 0 1px !important;
-        overflow: hidden !important;
-        flex: 1 1 auto !important;
+        overflow: hidden !important; /* はみ出し防止 */
+        flex: 1 1 auto !important; /* 自動で幅を調整 */
     }
 
-    /* 4. 入力欄・ボタンの共通設定 */
+    /* 3. 数の入力欄（矢印復活・はみ出し防止） */
+    div[data-testid="stNumberInput"] { 
+        margin: 0 !important; 
+        width: 100% !important; /* 親カラムに合わせる */
+    }
     div[data-testid="stNumberInput"] input {
-        padding: 0 !important;
+        padding: 0 2px !important; /* 文字が切れないよう調整 */
         text-align: center !important;
-        height: 28px !important;
-        font-size: 12px !important;
+        height: 30px !important; /* タップしやすい高さ */
+        font-size: 13px !important;
+        min-width: 0 !important; /* 縮小許可 */
     }
-    div[data-testid="stNumberInput"] { margin: 0 !important; }
-    div[data-testid="stTextInput"] { margin-bottom: 0px; }
+    /* Streamlit標準の増減ボタンを表示させるため、無理な隠蔽CSSは削除 */
 
-    /* 5. ヘッダーのデザイン（黒背景） */
+    /* 4. ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
@@ -68,10 +67,10 @@ st.markdown("""
         display: flex;
         align-items: center;
         margin-top: 5px;
-        height: 100%;
+        width: 100%;
     }
 
-    /* 6. 行のデザイン（枠線あり） */
+    /* 5. 行のデザイン */
     .row-container {
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
@@ -80,21 +79,22 @@ st.markdown("""
         background-color: #fff;
         display: flex;
         align-items: center;
+        width: 100%;
     }
 
-    /* 7. ボタンのデザイン */
+    /* 6. ボタンのデザイン（自動幅調整） */
     button {
         padding: 0 !important;
-        height: 24px !important;
+        height: 26px !important;
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
         border-radius: 3px !important;
-        transition: 0.2s;
-        width: 100% !important;
+        width: 100% !important; /* 親カラムいっぱいに広がる */
+        min-width: 0 !important; /* 縮小許可 */
     }
 
-    /* 入庫ボタン（薄緑文字＋薄緑枠） */
+    /* 入庫ボタン */
     button[kind="secondary"] {
         background-color: transparent !important;
         color: #28a745 !important;
@@ -102,29 +102,35 @@ st.markdown("""
     }
     button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
-    /* 出庫ボタン（朱色文字＋朱色枠） */
-    /* ★修正：朱色の文字色を強制適用 */
+    /* 出庫ボタン */
     button[kind="primary"] {
         background-color: transparent !important;
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
     button[kind="primary"]:active { background-color: #fceceb !important; }
-    /* Streamlitのデフォルトスタイルを上書きして文字色を朱色にする */
+    /* 文字色強制 */
     button[kind="primary"] p { color: #e74c3c !important; }
 
-    /* 更新ボタンのみ例外（グレー背景） */
+    /* 更新ボタン */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
+        height: 30px !important;
     }
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
-    /* ★修正：教科書名の文字を大きく */
-    .book-name { font-size: 13px; font-weight: bold; line-height: 1.1; padding-left: 2px; }
+    /* ★修正：教科書名を大きく見やすく */
+    .book-name { 
+        font-size: 14px; /* 大きく！ */
+        font-weight: bold; 
+        line-height: 1.1; 
+        padding-left: 2px;
+        white-space: normal; /* 折り返し許可 */
+    }
     .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
-    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
+    .stock-val { font-size: 13px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -201,21 +207,21 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト
+    # 在庫リスト（自動調整対応版）
     # ---------------------------------------------------------
     with tab_list:
-        # ★修正：幅比率の変更（教科書名を半分に縮小）
-        # 元 [3, 1, 1, 2] -> 新 [1.5, 1, 1, 2]
-        # これで教科書名の欄が狭くなり、全体が画面に収まりやすくなります
-        col_ratio = [1.5, 1, 1, 2]
+        # ★修正：幅比率
+        # 教科書名(3.5): 在庫(1.2): 数(1.2): 操作(1.8)
+        # この比率は「Flexboxの重み」として機能し、画面幅に合わせて自動伸縮します
+        col_ratio = [3.5, 1.2, 1.2, 1.8]
 
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:1.5; text-align:left; padding-left:4px;">教科書名</div>
-            <div style="flex:1; text-align:center;">在庫</div>
-            <div style="flex:1; text-align:center;">数</div>
-            <div style="flex:2; text-align:center;">操作</div>
+            <div style="flex:3.5; text-align:left; padding-left:4px;">教科書名</div>
+            <div style="flex:1.2; text-align:center;">在庫</div>
+            <div style="flex:1.2; text-align:center;">数</div>
+            <div style="flex:1.8; text-align:center;">操作</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -237,11 +243,11 @@ def main():
             # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成（ヘッダーと全く同じ比率を使用）
+            # カラム作成（gap="small"）
             c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
             
             with c1:
-                # 教科書名
+                # 教科書名（文字サイズ大）
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -259,20 +265,18 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量
+                # 数量（矢印復活・自動幅調整）
+                # keyにuuidを使うとリセットされるが再描画が重くなるので固定ID
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
-                # 操作：ボタン2つを横並び（隣り合わせ）＆真ん中配置
-                b1, b2 = st.columns(2, gap="small")
+                # 操作（ボタン2つ上下）
+                # ボタンも親カラム幅に合わせて自動で幅が決まります
+                if st.button("入庫", key=f"in_{item_id}"):
+                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
-                with b1:
-                    if st.button("入庫", key=f"in_{item_id}"):
-                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
-                
-                with b2:
-                    if st.button("出庫", key=f"out_{item_id}", type="primary"):
-                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
+                if st.button("出庫", key=f"out_{item_id}", type="primary"):
+                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
