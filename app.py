@@ -24,11 +24,11 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 2. タイトルの調整（見切れ防止） */
+    /* 2. タイトルの調整 */
     h3 { 
         font-size: 1.2rem !important; 
         margin-bottom: 0.5rem; 
-        white-space: normal !important; /* 折り返し許可 */
+        white-space: normal !important;
         overflow: visible !important;
     }
 
@@ -36,7 +36,7 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 1px !important; /* 隙間を詰める */
+        gap: 2px !important;
         align-items: center !important;
     }
     div[data-testid="column"] {
@@ -56,13 +56,7 @@ st.markdown("""
     div[data-testid="stNumberInput"] { margin: 0 !important; }
     div[data-testid="stTextInput"] { margin-bottom: 0px; }
 
-    /* ★追加修正：数の欄の矢印（スピンボタン）を消す */
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
-    }
-    input[type=number] { -moz-appearance:textfield; }
+    /* ※矢印を消すCSSは削除しました（復活） */
 
     /* 5. ヘッダーのデザイン（黒背景） */
     .table-header {
@@ -76,6 +70,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         margin-top: 5px;
+        height: 100%; /* 高さを揃える */
     }
 
     /* 6. 行のデザイン（枠線あり） */
@@ -98,7 +93,7 @@ st.markdown("""
         line-height: 1 !important;
         border-radius: 3px !important;
         transition: 0.2s;
-        width: 100% !important; /* 横幅いっぱいに */
+        width: 100% !important;
     }
 
     /* 入庫ボタン（薄緑文字＋薄緑枠） */
@@ -205,12 +200,12 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（修正版）
+    # 在庫リスト（修正版：ヘッダーとデータの完全同期）
     # ---------------------------------------------------------
     with tab_list:
-        # ★修正：幅比率の変更
-        # ボタン2つを横並びにするため、操作列(c4)を広げる
-        # [名前3, 在庫1, 数1, 操作2]
+        # ★修正：幅比率の統一
+        # [名前3, 在庫1, 数1, 操作2] (合計7)
+        # この比率をヘッダーとデータ行で絶対に守る
         col_ratio = [3, 1, 1, 2]
 
         # ヘッダー行
@@ -241,7 +236,7 @@ def main():
             # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成
+            # カラム作成（ヘッダーと全く同じ比率を使用）
             c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
             
             with c1:
@@ -263,12 +258,11 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（初期値1、矢印なし）
+                # 数量（矢印復活）
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
-                # ★修正：操作ボタンを横並び（隣り合わせ）＆真ん中配置
-                # この列の中でさらに2つの列を作る
+                # 操作：ボタン2つを横並び（隣り合わせ）＆真ん中配置
                 b1, b2 = st.columns(2, gap="small")
                 
                 with b1:
