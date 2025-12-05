@@ -11,16 +11,16 @@ from datetime import datetime
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
 
 # ---------------------------------------------------------
-# CSS (徹底的なレイアウト調整)
+# CSS (徹底的なレイアウト調整・パネル小型化)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-    /* 1. 全体設定とPCでの幅制限 */
+    /* 1. 全体設定 */
     body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
     
     .block-container { 
-        padding-top: 4.5rem !important; /* タイトル用余白拡大 */
-        padding-bottom: 100px !important; /* 下部パネル用余白 */
+        padding-top: 4.5rem !important; 
+        padding-bottom: 80px !important; /* パネルの高さ分だけ空ける */
         padding-left: 0.5rem !important; 
         padding-right: 0.5rem !important; 
     }
@@ -28,10 +28,9 @@ st.markdown("""
     /* PC画面（幅640px以上）の時は、画面の50%の幅にする */
     @media (min-width: 640px) {
         .block-container {
-            max-width: 50vw !important; /* 画面の半分 */
+            max-width: 50vw !important;
             margin: 0 auto !important;
         }
-        /* 下部パネルもPCでは幅を合わせる */
         section[data-testid="stSidebar"] {
             width: 50vw !important;
             left: 50% !important;
@@ -47,24 +46,25 @@ st.markdown("""
         line-height: 1.4;
     }
 
-    /* 3. 下部固定パネル（リストの1行と同じくらいのサイズに） */
+    /* 3. 下部固定パネル（極限までコンパクトに） */
     section[data-testid="stSidebar"] {
         position: fixed !important;
         bottom: 0 !important;
         top: auto !important;
         left: 0 !important;
         height: auto !important;
-        background-color: #fff !important;
+        background-color: #f9f9f9 !important; /* 少し色を変えて区別 */
         border-top: 1px solid #ccc !important;
-        box-shadow: 0 -2px 5px rgba(0,0,0,0.05) !important;
-        z-index: 99999 !important;
-        padding: 5px 10px !important; /* 余白を削ってスリムに */
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.1) !important;
+        z-index: 999999 !important;
+        padding: 8px 10px !important; /* 余白を最小限に */
     }
     
-    /* サイドバーの余計なパーツ（折りたたみ、ヘッダー）を完全削除 */
+    /* サイドバーの余計なパーツを完全削除（折りたたみボタン含む） */
     div[data-testid="stSidebarNav"], 
     button[kind="header"],
-    div[data-testid="collapsedControl"] { 
+    div[data-testid="collapsedControl"], 
+    [data-testid="stSidebarCollapsedControl"] { /* これで確実に消す */
         display: none !important; 
     }
     section[data-testid="stSidebar"] .block-container { 
@@ -73,12 +73,14 @@ st.markdown("""
         width: 100% !important;
     }
     
-    /* パネル内のコンテンツ配置（横並び） */
-    .footer-content {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        width: 100%;
+    /* パネル内の文字（選択中の教科書名）を小さく1行に収める */
+    .panel-info {
+        font-size: 10px;
+        color: #555;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* 4. ヘッダーとリストのデザイン */
@@ -96,7 +98,6 @@ st.markdown("""
         justify-content: center;
     }
 
-    /* 教科書選択ボタン（リスト内の行） */
     div.row-btn button {
         background-color: white !important;
         color: #333 !important;
@@ -104,7 +105,7 @@ st.markdown("""
         text-align: left !important;
         font-weight: bold !important;
         font-size: 13px !important;
-        min-height: 45px !important; /* 行の高さを確保 */
+        min-height: 45px !important;
         padding: 5px 10px !important;
         white-space: normal !important;
         line-height: 1.2 !important;
@@ -115,18 +116,18 @@ st.markdown("""
         background-color: #f0fff0 !important;
     }
 
-    /* 5. 下部パネル内のボタン・入力欄（高さを揃える） */
+    /* 5. パネル内のボタン・入力欄（高さを35pxに統一してスリム化） */
     .footer-btn button {
-        height: 38px !important;
+        height: 35px !important;
         font-size: 12px !important;
         font-weight: bold !important;
         border-radius: 4px !important;
         padding: 0 !important;
+        line-height: 1 !important;
     }
     
-    /* 入力欄 */
     div[data-testid="stNumberInput"] input {
-        height: 38px !important;
+        height: 35px !important;
         text-align: center !important;
         font-size: 14px !important;
         padding: 0 !important;
@@ -185,10 +186,10 @@ def load_data():
 def main():
     if 'selected_book_id' not in st.session_state:
         st.session_state.selected_book_id = None
-        st.session_state.selected_book_name = "（未選択）"
+        st.session_state.selected_book_name = "（教科書を選択してください）"
         st.session_state.selected_book_stock = 0
 
-    st.markdown("### 教科書在庫管理表") # 見切れ防止対策済み
+    st.markdown("### 教科書在庫管理表")
     
     sh, ws_items, df_items, ws_logs, df_logs = load_data()
     if sh is None: return
@@ -211,7 +212,7 @@ def main():
     tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（状態列削除・タップ選択式）
+    # 在庫リスト
     # ---------------------------------------------------------
     with tab_list:
         if search_query:
@@ -220,8 +221,7 @@ def main():
         else:
             df_display = df_items
 
-        # ヘッダー行（状態列を削除し、在庫列を少し広げる）
-        # 比率: [教科書名(4), 在庫(1.5)] -> 合計5.5
+        # ヘッダー行
         h1, h2 = st.columns([4, 1.5])
         h1.markdown('<div class="header-box" style="justify-content:flex-start; padding-left:10px;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
         h2.markdown('<div class="header-box">在庫</div>', unsafe_allow_html=True)
@@ -233,7 +233,6 @@ def main():
             alert = int(row['発注点'])
             
             is_low = stock <= alert
-            # 在庫が少なければ朱色、通常は黒
             stock_color = "#e74c3c" if is_low else "#333"
             stock_weight = "bold" if is_low else "bold"
 
@@ -241,9 +240,7 @@ def main():
             c1, c2 = st.columns([4, 1.5])
             
             with c1:
-                # 教科書名ボタン
                 st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                # 選択中の教科書は色を変えてもいいが、シンプルに
                 label = f"{name}"
                 if st.button(label, key=f"sel_{item_id}", use_container_width=True):
                     st.session_state.selected_book_id = item_id
@@ -252,7 +249,6 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with c2:
-                # 在庫数（朱色対応）
                 st.markdown(f"""
                 <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
                     <span style="font-size:16px; font-weight:{stock_weight}; color:{stock_color};">{stock}</span>
@@ -262,21 +258,15 @@ def main():
             st.markdown("<hr style='margin:0; border-top:1px solid #eee;'>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # 下部固定操作パネル（常時表示・コンパクト・折りたたみなし）
+    # 下部固定操作パネル（超コンパクト版）
     # ---------------------------------------------------------
     with st.sidebar:
-        # 選択中の教科書を表示（小さく）
-        display_name = st.session_state.selected_book_name
-        if st.session_state.selected_book_id is None:
-            display_name = "（リストから選択してください）"
-            
-        st.markdown(f"<div style='font-size:11px; color:#666; margin-bottom:2px;'>選択中: <b>{display_name}</b></div>", unsafe_allow_html=True)
+        # 情報表示を最小限に
+        st.markdown(f"<div class='panel-info'>選択中: <b>{st.session_state.selected_book_name}</b> (在庫: {st.session_state.selected_book_stock})</div>", unsafe_allow_html=True)
         
-        # 操作エリア：数量(1.2) 入庫(1.5) 出庫(1.5)
-        # コンパクトに横並び
+        # 操作エリア：数量(1) 入庫(1.5) 出庫(1.5) -> コンパクトに
         c_qty, c_in, c_out = st.columns([1.2, 1.5, 1.5], gap="small")
         
-        # 選択されていない時は disabled=True
         is_disabled = st.session_state.selected_book_id is None
         
         with c_qty:
