@@ -6,54 +6,27 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# ステップ1：PC画面の表示幅を「中央寄せ」に固定する
+# 設定・デザイン調整
 # ---------------------------------------------------------
-st.set_page_config(
-    page_title="教科書在庫管理", 
-    layout="centered",  # ここを "wide" ではなく "centered" にする
-    initial_sidebar_state="collapsed"
-)
 
-# ---------------------------------------------------------
-# ステップ2：スマホのはみ出しをCSSで強制的に防ぐ ＋ デザイン調整
-# ---------------------------------------------------------
+st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
+
+# カスタムCSS
 st.markdown("""
 <style>
-    /* 全体のフォント */
-    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; }
-
-    /* ▼▼▼ 今回追加した「はみ出し防止」の魔法のCSS ▼▼▼ */
+    /* 1. 基本設定 */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* 1. アプリ全体の横幅制限（スマホでの横揺れ防止） */
-    .block-container {
+    /* 左右の余白を最小限に */
+    .block-container { 
+        padding-top: 0.5rem; 
+        padding-bottom: 2rem; 
+        padding-left: 0.2rem !important; 
+        padding-right: 0.2rem !important; 
         max-width: 100% !important;
-        padding-left: 0.5rem !important; /* スマホ用に少し狭めに調整 */
-        padding-right: 0.5rem !important;
     }
-    
-    /* 2. データフレーム（表）の強制サイズ調整 */
-    /* 表が画面より大きい場合は、表の中だけでスクロールさせる */
-    [data-testid="stDataFrame"], [data-testid="stTable"] {
-        width: 100% !important;
-        overflow-x: auto !important;
-        display: block !important;
-    }
-    
-    /* 3. 画像やグラフの強制サイズ調整 */
-    img, .js-plotly-plot {
-        max-width: 100% !important;
-        height: auto !important;
-    }
-    
-    /* ▲▲▲ ここまで ▲▲▲ */
 
-
-    /* --- 以下、以前からのデザイン調整用CSS（変更なし） --- */
-
-    /* タイトルの調整 */
-    h3 { font-size: 1.2rem !important; margin-bottom: 0.5rem; }
-
-    /* スマホでも横並びを維持する設定 */
+    /* 2. 強制横並び設定 & 自動サイズ調整 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
@@ -68,17 +41,20 @@ st.markdown("""
         flex: 1 1 auto !important;
     }
 
-    /* 数量入力欄の調整 */
-    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
-    div[data-testid="stNumberInput"] input { 
-        text-align: center; 
-        padding: 0 2px !important;
-        height: 30px !important;
+    /* 3. 数の入力欄（矢印復活・はみ出し防止） */
+    div[data-testid="stNumberInput"] { 
+        margin: 0 !important; 
+        width: 100% !important; 
+    }
+    div[data-testid="stNumberInput"] input {
+        padding: 0 2px !important; 
+        text-align: center !important;
+        height: 30px !important; 
         font-size: 13px !important;
         min-width: 0 !important;
     }
 
-    /* ヘッダーのデザイン（黒背景） */
+    /* 4. ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
@@ -93,7 +69,7 @@ st.markdown("""
         width: 100%;
     }
 
-    /* 行のデザイン（枠線あり） */
+    /* 5. 行のデザイン */
     .row-container {
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
@@ -105,20 +81,19 @@ st.markdown("""
         width: 100%;
     }
 
-    /* ボタンのスタイル調整 */
+    /* 6. ボタンのデザイン（CSSで幅100%を強制） */
     div.stButton > button {
         padding: 0 !important;
+        height: 26px !important;
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
-        border-radius: 4px !important;
-        min-height: 26px !important;
-        height: 26px !important;
-        width: 100% !important;
+        border-radius: 3px !important;
+        width: 100% !important; 
         min-width: 0 !important;
     }
 
-    /* 入庫ボタン（薄緑文字＋薄緑枠） */
+    /* 入庫ボタン */
     button[kind="secondary"] {
         background-color: transparent !important;
         color: #28a745 !important;
@@ -126,17 +101,16 @@ st.markdown("""
     }
     button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
-    /* 出庫ボタン（朱色文字＋朱色枠） */
+    /* 出庫ボタン */
     button[kind="primary"] {
         background-color: transparent !important;
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
     button[kind="primary"]:active { background-color: #fceceb !important; }
-    /* 強制的に文字色を適用 */
     button[kind="primary"] p { color: #e74c3c !important; }
 
-    /* 更新ボタン（グレー） */
+    /* 更新ボタン */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
@@ -146,9 +120,15 @@ st.markdown("""
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
     /* 文字スタイル */
-    .book-name { font-size: 14px; font-weight: bold; line-height: 1.1; padding-left: 4px; white-space: normal; }
-    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 4px; }
-    .stock-val { font-size: 13px; font-weight: bold; text-align: center; }
+    .book-name { 
+        font-size: 14px; 
+        font-weight: bold; 
+        line-height: 1.1; 
+        padding-left: 2px;
+        white-space: normal;
+    }
+    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
+    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -206,7 +186,7 @@ def main():
     with c_search:
         search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
     with c_update:
-        if st.button("↻ 更新", use_container_width=True): st.rerun()
+        if st.button("↻ 更新"): st.rerun()
 
     # 並べ替え
     sort_mode = st.radio("", ["追加日順", "在庫少ない順"], horizontal=True, label_visibility="collapsed")
@@ -281,23 +261,23 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（矢印あり・初期値1・幅いっぱい）
+                # 数量（エラーの原因だったパラメータを削除）
+                # CSSでwidth: 100%にしているので見た目は変わりません
                 qty = st.number_input(
                     "q", 
                     min_value=1, 
                     value=1, 
                     label_visibility="collapsed", 
-                    key=f"q_{item_id}",
-                    use_container_width=True # 魔法のパラメータ
+                    key=f"q_{item_id}"
                 )
                 
             with c4:
                 # 操作：ボタン2つを上下に配置
-                # 魔法のパラメータ use_container_width=True を適用
-                if st.button("入庫", key=f"in_{item_id}", use_container_width=True):
+                # ボタンはCSSでwidth: 100%にしています
+                if st.button("入庫", key=f"in_{item_id}"):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
-                if st.button("出庫", key=f"out_{item_id}", type="primary", use_container_width=True):
+                if st.button("出庫", key=f"out_{item_id}", type="primary"):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
@@ -326,7 +306,8 @@ def main():
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
-            if st.form_submit_button("登録", use_container_width=True):
+            # エラー回避のため、ここからも削除
+            if st.form_submit_button("登録"):
                 fname = name_in if name_sel == "新規入力" else name_sel
                 fpub = pub_in if pub_sel == "その他" else pub_sel
                 
