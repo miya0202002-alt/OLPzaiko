@@ -9,6 +9,8 @@ from datetime import datetime
 # 設定・デザイン調整
 # ---------------------------------------------------------
 
+
+
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
 
 # カスタムCSS
@@ -350,3 +352,4 @@ def add_log(ws_logs, action_type, item_id, item_name, change_val):
 
 if __name__ == "__main__":
     main()
+
