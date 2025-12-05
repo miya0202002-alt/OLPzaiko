@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整（ユーザー指定比率 完全対応版）
+# 設定・デザイン調整
 # ---------------------------------------------------------
 
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
@@ -14,7 +14,7 @@ st.set_page_config(page_title="教科書在庫管理", layout="centered", initia
 # カスタムCSS
 st.markdown("""
 <style>
-    /* 1. 基本設定と余白削除（タイトル見切れ防止） */
+    /* 1. 基本設定 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     .block-container { 
         padding-top: 0.5rem; 
@@ -24,19 +24,24 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 2. タイトルの文字サイズ調整 */
-    h3 { font-size: 1.1rem !important; margin-bottom: 0.5rem; }
+    /* 2. タイトルの調整（見切れ防止） */
+    h3 { 
+        font-size: 1.2rem !important; 
+        margin-bottom: 0.5rem; 
+        white-space: normal !important; /* 折り返し許可 */
+        overflow: visible !important;
+    }
 
-    /* 3. 強制横並び設定（スマホで縦にならないように） */
+    /* 3. 強制横並び設定 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 2px !important;
+        gap: 1px !important; /* 隙間を詰める */
         align-items: center !important;
     }
     div[data-testid="column"] {
         min-width: 0px !important;
-        padding: 0 !important;
+        padding: 0 1px !important;
         overflow: hidden !important;
         flex: 1 1 auto !important;
     }
@@ -51,11 +56,19 @@ st.markdown("""
     div[data-testid="stNumberInput"] { margin: 0 !important; }
     div[data-testid="stTextInput"] { margin-bottom: 0px; }
 
+    /* ★追加修正：数の欄の矢印（スピンボタン）を消す */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] { -moz-appearance:textfield; }
+
     /* 5. ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
-        padding: 6px 2px;
+        padding: 6px 0px;
         font-weight: bold;
         font-size: 10px;
         text-align: center;
@@ -65,7 +78,7 @@ st.markdown("""
         margin-top: 5px;
     }
 
-    /* 6. 行のデザイン（以前のボックス型に戻す） */
+    /* 6. 行のデザイン（枠線あり） */
     .row-container {
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
@@ -76,16 +89,16 @@ st.markdown("""
         align-items: center;
     }
 
-    /* 7. ボタンのデザイン（指定：枠線のみ・文字色あり） */
+    /* 7. ボタンのデザイン */
     button {
         padding: 0 !important;
-        height: 24px !important; /* 高さを抑える */
+        height: 24px !important;
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
         border-radius: 3px !important;
         transition: 0.2s;
-        margin-bottom: 2px !important;
+        width: 100% !important; /* 横幅いっぱいに */
     }
 
     /* 入庫ボタン（薄緑文字＋薄緑枠） */
@@ -94,9 +107,7 @@ st.markdown("""
         color: #28a745 !important;
         border: 1px solid #28a745 !important;
     }
-    button[kind="secondary"]:active {
-        background-color: #e6f9e6 !important;
-    }
+    button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
     /* 出庫ボタン（朱色文字＋朱色枠） */
     button[kind="primary"] {
@@ -104,11 +115,9 @@ st.markdown("""
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
-    button[kind="primary"]:active {
-        background-color: #fceceb !important;
-    }
+    button[kind="primary"]:active { background-color: #fceceb !important; }
 
-    /* 更新ボタンのみ例外（グレー背景・黒文字） */
+    /* 更新ボタンのみ例外（グレー背景） */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
@@ -116,9 +125,9 @@ st.markdown("""
         height: 30px !important;
     }
 
-    /* 文字スタイルの調整 */
-    .book-name { font-size: 10px; font-weight: bold; line-height: 1.2; padding-left: 4px; }
-    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 4px; }
+    /* 文字スタイル */
+    .book-name { font-size: 10px; font-weight: bold; line-height: 1.1; padding-left: 2px; }
+    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
     .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
     
 </style>
@@ -172,14 +181,14 @@ def main():
         if col in df_items.columns:
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # 検索・更新エリア（比率調整）
+    # 検索・更新エリア
     c_search, c_update = st.columns([3.5, 1])
     with c_search:
         search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
     with c_update:
         if st.button("↻ 更新"): st.rerun()
 
-    # 並べ替え（追加日順と在庫少ない順のみ）
+    # 並べ替え
     sort_mode = st.radio("", ["追加日順", "在庫少ない順"], horizontal=True, label_visibility="collapsed")
     
     if sort_mode == "追加日順":
@@ -196,21 +205,21 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（指定比率・操作列統合版）
+    # 在庫リスト（修正版）
     # ---------------------------------------------------------
     with tab_list:
-        # 指定比率の実現
-        # 教科書名(3.5): 在庫(1.2): 数量(1.2): 操作(1.8)
-        # 合計7.7。スマホ幅にフィットするように調整済み。
-        col_ratio = [3.5, 1.2, 1.2, 1.8]
+        # ★修正：幅比率の変更
+        # ボタン2つを横並びにするため、操作列(c4)を広げる
+        # [名前3, 在庫1, 数1, 操作2]
+        col_ratio = [3, 1, 1, 2]
 
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:3.5; text-align:left; padding-left:4px;">教科書名</div>
-            <div style="flex:1.2; text-align:center;">在庫</div>
-            <div style="flex:1.2; text-align:center;">数</div>
-            <div style="flex:1.8; text-align:center;">操作</div>
+            <div style="flex:3; text-align:left; padding-left:4px;">教科書名</div>
+            <div style="flex:1; text-align:center;">在庫</div>
+            <div style="flex:1; text-align:center;">数</div>
+            <div style="flex:2; text-align:center;">操作</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -229,14 +238,14 @@ def main():
             stock_color = "#d63031" if is_low else "#333"
             alert_badge = '<span style="color:red; font-size:9px;">不足</span>' if is_low else ""
 
-            # 行コンテナ（枠線ありの以前のデザイン）
+            # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成（gap="small"で詰める）
+            # カラム作成
             c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
             
             with c1:
-                # 教科書名（狭め）
+                # 教科書名
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -245,7 +254,7 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c2:
-                # 在庫（極狭）
+                # 在庫
                 st.markdown(f"""
                 <div style="text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%;">
                     <span class="stock-val" style="color:{stock_color};">{stock}</span>
@@ -254,16 +263,21 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（極狭・初期値1）
+                # 数量（初期値1、矢印なし）
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
-                # 操作（少し狭め・ボタン2つ上下）
-                if st.button("入庫", key=f"in_{item_id}"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
+                # ★修正：操作ボタンを横並び（隣り合わせ）＆真ん中配置
+                # この列の中でさらに2つの列を作る
+                b1, b2 = st.columns(2, gap="small")
                 
-                if st.button("出庫", key=f"out_{item_id}", type="primary"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
+                with b1:
+                    if st.button("入庫", key=f"in_{item_id}"):
+                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
+                
+                with b2:
+                    if st.button("出庫", key=f"out_{item_id}", type="primary"):
+                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -305,7 +319,7 @@ def main():
                     st.rerun()
 
 # ---------------------------------------------------------
-# ログ記録（append_rowで確実に追加）
+# ログ記録
 # ---------------------------------------------------------
 def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity, action_type):
     new_stock = current_stock + quantity if action_type == "入庫" else current_stock - quantity
