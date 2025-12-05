@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整（ユーザー指定の比率・デザイン厳守版）
+# 設定・デザイン調整（ユーザー指定比率 完全対応版）
 # ---------------------------------------------------------
 
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
@@ -79,12 +79,13 @@ st.markdown("""
     /* 7. ボタンのデザイン（指定：枠線のみ・文字色あり） */
     button {
         padding: 0 !important;
-        height: 28px !important;
+        height: 24px !important; /* 高さを抑える */
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
-        border-radius: 4px !important;
+        border-radius: 3px !important;
         transition: 0.2s;
+        margin-bottom: 2px !important;
     }
 
     /* 入庫ボタン（薄緑文字＋薄緑枠） */
@@ -112,6 +113,7 @@ st.markdown("""
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
+        height: 30px !important;
     }
 
     /* 文字スタイルの調整 */
@@ -194,21 +196,21 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（ユーザー指定比率 完全対応版）
+    # 在庫リスト（指定比率・操作列統合版）
     # ---------------------------------------------------------
     with tab_list:
         # 指定比率の実現
-        # 教科書名(3.2) : 在庫(0.8) : 数量(0.8) : 操作(1.2)
-        # これで合計6。操作列の中にボタンを2つ入れる。
-        col_ratio = [3.2, 0.8, 0.8, 1.2]
+        # 教科書名(3.5): 在庫(1.2): 数量(1.2): 操作(1.8)
+        # 合計7.7。スマホ幅にフィットするように調整済み。
+        col_ratio = [3.5, 1.2, 1.2, 1.8]
 
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:3.2; text-align:left; padding-left:4px;">教科書名</div>
-            <div style="flex:0.8; text-align:center;">在庫</div>
-            <div style="flex:0.8; text-align:center;">数</div>
-            <div style="flex:1.2; text-align:center;">操作</div>
+            <div style="flex:3.5; text-align:left; padding-left:4px;">教科書名</div>
+            <div style="flex:1.2; text-align:center;">在庫</div>
+            <div style="flex:1.2; text-align:center;">数</div>
+            <div style="flex:1.8; text-align:center;">操作</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -223,7 +225,6 @@ def main():
             pub = row['出版社']
             
             is_low = stock <= alert
-            # 背景色は白（不足時は薄い赤）
             bg_style = "background-color: #fff5f5;" if is_low else "background-color: #fff;"
             stock_color = "#d63031" if is_low else "#333"
             alert_badge = '<span style="color:red; font-size:9px;">不足</span>' if is_low else ""
@@ -231,11 +232,11 @@ def main():
             # 行コンテナ（枠線ありの以前のデザイン）
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成（gap="0"で極限まで詰める）
+            # カラム作成（gap="small"で詰める）
             c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
             
             with c1:
-                # 教科書名：幅を削った分、文字サイズを小さくして収める
+                # 教科書名（狭め）
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -244,7 +245,7 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c2:
-                # 在庫：2桁入るギリギリの幅
+                # 在庫（極狭）
                 st.markdown(f"""
                 <div style="text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%;">
                     <span class="stock-val" style="color:{stock_color};">{stock}</span>
@@ -253,23 +254,16 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量：初期値「1」固定（絶対）
-                # 5分の1の幅に合わせてinputも小さく
+                # 数量（極狭・初期値1）
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
-                # 操作：入庫・出庫ボタンを配置
-                # 「入と出を1つにまとめて、操作に変えて」 -> 実現済み
-                # ここにボタンを2つ並べる
-                b1, b2 = st.columns(2, gap="small")
-                with b1:
-                    # 入庫（薄い緑枠・文字）
-                    if st.button("入", key=f"in_{item_id}"):
-                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
-                with b2:
-                    # 出庫（朱色枠・文字）-> type="primary" でCSSターゲットにする
-                    if st.button("出", key=f"out_{item_id}", type="primary"):
-                        update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
+                # 操作（少し狭め・ボタン2つ上下）
+                if st.button("入庫", key=f"in_{item_id}"):
+                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
+                
+                if st.button("出庫", key=f"out_{item_id}", type="primary"):
+                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -294,7 +288,6 @@ def main():
             loc = c2.text_input("保管場所")
             
             c3, c4 = st.columns(2)
-            # 初期値 1
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
@@ -335,7 +328,6 @@ def add_log(ws_logs, action_type, item_id, item_name, change_val):
     try:
         log_id = int(datetime.now().timestamp())
         now = datetime.now().strftime("%Y/%m/%d %H:%M")
-        # 確実に書き込む
         ws_logs.append_row([log_id, now, action_type, int(item_id), int(change_val), str(item_name)])
     except:
         pass 
