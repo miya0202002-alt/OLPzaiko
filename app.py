@@ -9,8 +9,6 @@ from datetime import datetime
 # 設定・デザイン調整
 # ---------------------------------------------------------
 
-
-
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
 
 # カスタムCSS
@@ -19,40 +17,37 @@ st.markdown("""
     /* 1. 基本設定 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* 左右の余白を最小限に */
+    /* 左右の余白を完全削除（画面幅100%使用） */
     .block-container { 
         padding-top: 0.5rem; 
         padding-bottom: 2rem; 
-        padding-left: 0.2rem !important; 
-        padding-right: 0.2rem !important; 
+        padding-left: 0.1rem !important; 
+        padding-right: 0.1rem !important; 
         max-width: 100% !important;
     }
 
-    /* 2. 強制横並び設定 & 自動サイズ調整 */
+    /* 2. カラムの強制横並び設定 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 2px !important;
+        gap: 1px !important;
         align-items: center !important;
         width: 100% !important;
     }
     div[data-testid="column"] {
         min-width: 0px !important;
-        padding: 0 1px !important;
-        overflow: hidden !important;
+        padding: 0 !important;
+        overflow: visible !important; /* はみ出しても隠さない */
         flex: 1 1 auto !important;
     }
 
-    /* 3. 数の入力欄（矢印復活・はみ出し防止） */
-    div[data-testid="stNumberInput"] { 
-        margin: 0 !important; 
-        width: 100% !important; 
-    }
+    /* 3. 数の入力欄 */
+    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
     div[data-testid="stNumberInput"] input {
-        padding: 0 2px !important; 
+        padding: 0 !important; 
         text-align: center !important;
         height: 30px !important; 
-        font-size: 13px !important;
+        font-size: 11px !important; /* 文字小さく */
         min-width: 0 !important;
     }
 
@@ -60,11 +55,11 @@ st.markdown("""
     .table-header {
         background-color: #222;
         color: white;
-        padding: 6px 0px;
+        padding: 5px 0px;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 9px; /* 文字小さく */
         text-align: center;
-        border-radius: 4px 4px 0 0;
+        border-radius: 3px 3px 0 0;
         display: flex;
         align-items: center;
         margin-top: 5px;
@@ -76,23 +71,24 @@ st.markdown("""
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
         border-right: 1px solid #ccc;
-        padding: 6px 0;
+        padding: 4px 0;
         background-color: #fff;
         display: flex;
         align-items: center;
         width: 100%;
     }
 
-    /* 6. ボタンのデザイン（CSSで幅100%を強制） */
+    /* 6. ボタンのデザイン */
     div.stButton > button {
         padding: 0 !important;
-        height: 26px !important;
-        font-size: 10px !important;
+        height: 24px !important;
+        font-size: 9px !important; /* 文字小さく */
         font-weight: bold !important;
         line-height: 1 !important;
-        border-radius: 3px !important;
+        border-radius: 2px !important;
         width: 100% !important; 
         min-width: 0 !important;
+        margin: 0 !important;
     }
 
     /* 入庫ボタン */
@@ -117,20 +113,22 @@ st.markdown("""
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
-        height: 30px !important;
+        height: 28px !important;
+        font-size: 11px !important;
     }
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
     /* 文字スタイル */
     .book-name { 
-        font-size: 14px; 
+        font-size: 11px; /* 少し小さくして収める */
         font-weight: bold; 
         line-height: 1.1; 
         padding-left: 2px;
-        white-space: normal;
+        white-space: normal; /* 折り返し許可 */
+        word-break: break-all; /* 長い単語も折り返す */
     }
-    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
-    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
+    .book-sub { font-size: 8px; color: #666; display: block; padding-left: 2px; }
+    .stock-val { font-size: 11px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -204,22 +202,23 @@ def main():
     else:
         df_display = df_items
 
-    tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
+    # ★修正：タブ名を変更
+    tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
     # 在庫リスト
     # ---------------------------------------------------------
     with tab_list:
-        # 指定比率 [3.5, 1.2, 1.2, 1.8]
-        col_ratio = [3.5, 1.2, 1.2, 1.8]
+        # ★修正：比率を極限まで詰める [教科書2.5, 在庫0.8, 数0.8, 操作1.4] 合計5.5
+        col_ratio = [2.5, 0.8, 0.8, 1.4]
 
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:3.5; text-align:left; padding-left:4px;">教科書名</div>
-            <div style="flex:1.2; text-align:center;">在庫</div>
-            <div style="flex:1.2; text-align:center;">数</div>
-            <div style="flex:1.8; text-align:center;">操作</div>
+            <div style="flex:2.5; text-align:left; padding-left:2px;">教科書名</div>
+            <div style="flex:0.8; text-align:center;">在庫</div>
+            <div style="flex:0.8; text-align:center;">数</div>
+            <div style="flex:1.4; text-align:center;">操作</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -236,7 +235,7 @@ def main():
             is_low = stock <= alert
             bg_style = "background-color: #fff5f5;" if is_low else "background-color: #fff;"
             stock_color = "#d63031" if is_low else "#333"
-            alert_badge = '<span style="color:red; font-size:9px;">不足</span>' if is_low else ""
+            alert_badge = '<span style="color:red; font-size:8px;">不足</span>' if is_low else ""
 
             # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
@@ -263,8 +262,7 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（エラーの原因だったパラメータを削除）
-                # CSSでwidth: 100%にしているので見た目は変わりません
+                # 数量（エラー回避のためパラメータなし）
                 qty = st.number_input(
                     "q", 
                     min_value=1, 
@@ -275,11 +273,12 @@ def main():
                 
             with c4:
                 # 操作：ボタン2つを上下に配置
-                # ボタンはCSSでwidth: 100%にしています
-                if st.button("入庫", key=f"in_{item_id}"):
+                # ★重要: use_container_width=True で幅いっぱいに
+                if st.button("入庫", key=f"in_{item_id}", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
-                if st.button("出庫", key=f"out_{item_id}", type="primary"):
+                # CSSでマージン調整済み
+                if st.button("出庫", key=f"out_{item_id}", type="primary", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
@@ -308,8 +307,7 @@ def main():
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
-            # エラー回避のため、ここからも削除
-            if st.form_submit_button("登録"):
+            if st.form_submit_button("登録", use_container_width=True):
                 fname = name_in if name_sel == "新規入力" else name_sel
                 fpub = pub_in if pub_sel == "その他" else pub_sel
                 
@@ -352,4 +350,3 @@ def add_log(ws_logs, action_type, item_id, item_name, change_val):
 
 if __name__ == "__main__":
     main()
-
