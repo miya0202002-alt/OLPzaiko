@@ -6,53 +6,83 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整
+# ステップ1：PC画面の表示幅を「中央寄せ」に固定する
 # ---------------------------------------------------------
+st.set_page_config(
+    page_title="教科書在庫管理", 
+    layout="centered",  # ここを "wide" ではなく "centered" にする
+    initial_sidebar_state="collapsed"
+)
 
-# 2. ページ設定（Layout）を確認する -> centeredを採用
-st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
-
-# カスタムCSS（スマホレイアウトのズレ防止用）
+# ---------------------------------------------------------
+# ステップ2：スマホのはみ出しをCSSで強制的に防ぐ ＋ デザイン調整
+# ---------------------------------------------------------
 st.markdown("""
 <style>
     /* 全体のフォント */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; }
+
+    /* ▼▼▼ 今回追加した「はみ出し防止」の魔法のCSS ▼▼▼ */
     
-    /* コンテナの余白調整 */
-    .block-container { 
-        padding-top: 1rem; 
-        padding-bottom: 3rem; 
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
+    /* 1. アプリ全体の横幅制限（スマホでの横揺れ防止） */
+    .block-container {
         max-width: 100% !important;
+        padding-left: 0.5rem !important; /* スマホ用に少し狭めに調整 */
+        padding-right: 0.5rem !important;
     }
+    
+    /* 2. データフレーム（表）の強制サイズ調整 */
+    /* 表が画面より大きい場合は、表の中だけでスクロールさせる */
+    [data-testid="stDataFrame"], [data-testid="stTable"] {
+        width: 100% !important;
+        overflow-x: auto !important;
+        display: block !important;
+    }
+    
+    /* 3. 画像やグラフの強制サイズ調整 */
+    img, .js-plotly-plot {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* ▲▲▲ ここまで ▲▲▲ */
+
+
+    /* --- 以下、以前からのデザイン調整用CSS（変更なし） --- */
 
     /* タイトルの調整 */
     h3 { font-size: 1.2rem !important; margin-bottom: 0.5rem; }
 
-    /* ★重要：スマホでも横並びを維持する設定 */
+    /* スマホでも横並びを維持する設定 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 4px !important;
+        gap: 2px !important;
         align-items: center !important;
+        width: 100% !important;
     }
     div[data-testid="column"] {
         min-width: 0px !important;
-        padding: 0 !important;
+        padding: 0 1px !important;
         overflow: hidden !important;
         flex: 1 1 auto !important;
     }
 
-    /* 数量入力欄の調整（上下中央） */
-    div[data-testid="stNumberInput"] { margin: 0 !important; }
-    div[data-testid="stNumberInput"] input { text-align: center; padding: 0; }
+    /* 数量入力欄の調整 */
+    div[data-testid="stNumberInput"] { margin: 0 !important; width: 100% !important; }
+    div[data-testid="stNumberInput"] input { 
+        text-align: center; 
+        padding: 0 2px !important;
+        height: 30px !important;
+        font-size: 13px !important;
+        min-width: 0 !important;
+    }
 
     /* ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
-        padding: 8px 0px;
+        padding: 6px 0px;
         font-weight: bold;
         font-size: 10px;
         text-align: center;
@@ -60,6 +90,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         margin-top: 5px;
+        width: 100%;
     }
 
     /* 行のデザイン（枠線あり） */
@@ -67,21 +98,24 @@ st.markdown("""
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
         border-right: 1px solid #ccc;
-        padding: 8px 0;
+        padding: 6px 0;
         background-color: #fff;
         display: flex;
         align-items: center;
+        width: 100%;
     }
 
-    /* ボタンのスタイル調整（use_container_widthで広がるが、高さなどを微調整） */
+    /* ボタンのスタイル調整 */
     div.stButton > button {
         padding: 0 !important;
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
         border-radius: 4px !important;
-        min-height: 32px !important; /* タップしやすい高さ */
-        height: 32px !important;
+        min-height: 26px !important;
+        height: 26px !important;
+        width: 100% !important;
+        min-width: 0 !important;
     }
 
     /* 入庫ボタン（薄緑文字＋薄緑枠） */
@@ -90,11 +124,7 @@ st.markdown("""
         color: #28a745 !important;
         border: 1px solid #28a745 !important;
     }
-    button[kind="secondary"]:active, button[kind="secondary"]:focus {
-        background-color: #e6f9e6 !important;
-        color: #28a745 !important;
-        border: 1px solid #28a745 !important;
-    }
+    button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
     /* 出庫ボタン（朱色文字＋朱色枠） */
     button[kind="primary"] {
@@ -102,11 +132,7 @@ st.markdown("""
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
-    button[kind="primary"]:active, button[kind="primary"]:focus {
-        background-color: #fceceb !important;
-        color: #e74c3c !important;
-        border: 1px solid #e74c3c !important;
-    }
+    button[kind="primary"]:active { background-color: #fceceb !important; }
     /* 強制的に文字色を適用 */
     button[kind="primary"] p { color: #e74c3c !important; }
 
@@ -115,13 +141,14 @@ st.markdown("""
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
+        height: 30px !important;
     }
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
     /* 文字スタイル */
-    .book-name { font-size: 13px; font-weight: bold; line-height: 1.1; padding-left: 4px; }
+    .book-name { font-size: 14px; font-weight: bold; line-height: 1.1; padding-left: 4px; white-space: normal; }
     .book-sub { font-size: 9px; color: #666; display: block; padding-left: 4px; }
-    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
+    .stock-val { font-size: 13px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -255,23 +282,21 @@ def main():
                 
             with c3:
                 # 数量（矢印あり・初期値1・幅いっぱい）
-                # 1. 魔法のパラメータ use_container_width=True を使う
                 qty = st.number_input(
                     "q", 
                     min_value=1, 
                     value=1, 
                     label_visibility="collapsed", 
-                    key=f"q_{item_id}"
-                    # ※注意: number_input は一部バージョンでまだ use_container_width 非対応の場合があるため、CSSでも幅100%を強制しています
+                    key=f"q_{item_id}",
+                    use_container_width=True # 魔法のパラメータ
                 )
                 
             with c4:
                 # 操作：ボタン2つを上下に配置
-                # 1. 魔法のパラメータ use_container_width=True を使う
+                # 魔法のパラメータ use_container_width=True を適用
                 if st.button("入庫", key=f"in_{item_id}", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
-                # 少し隙間を開けずに直後に配置
                 if st.button("出庫", key=f"out_{item_id}", type="primary", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
@@ -301,7 +326,6 @@ def main():
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
-            # 1. 魔法のパラメータ use_container_width=True を使う
             if st.form_submit_button("登録", use_container_width=True):
                 fname = name_in if name_sel == "新規入力" else name_sel
                 fpub = pub_in if pub_sel == "その他" else pub_sel
