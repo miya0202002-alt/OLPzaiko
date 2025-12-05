@@ -6,60 +6,53 @@ import json
 from datetime import datetime
 
 # ---------------------------------------------------------
-# 設定・デザイン調整（スマホ完全対応・自動調整版）
+# 設定・デザイン調整
 # ---------------------------------------------------------
 
+# 2. ページ設定（Layout）を確認する -> centeredを採用
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
 
-# カスタムCSS
+# カスタムCSS（スマホレイアウトのズレ防止用）
 st.markdown("""
 <style>
-    /* 1. 基本設定 */
-    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
+    /* 全体のフォント */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; }
     
-    /* 左右の余白を最小限に（画面を広く使う） */
+    /* コンテナの余白調整 */
     .block-container { 
-        padding-top: 0.5rem; 
-        padding-bottom: 2rem; 
-        padding-left: 0.2rem !important; 
-        padding-right: 0.2rem !important; 
+        padding-top: 1rem; 
+        padding-bottom: 3rem; 
+        padding-left: 0.5rem !important; 
+        padding-right: 0.5rem !important; 
         max-width: 100% !important;
     }
 
-    /* 2. 強制横並び設定 & 自動サイズ調整 */
+    /* タイトルの調整 */
+    h3 { font-size: 1.2rem !important; margin-bottom: 0.5rem; }
+
+    /* ★重要：スマホでも横並びを維持する設定 */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 2px !important;
+        gap: 4px !important;
         align-items: center !important;
-        width: 100% !important; /* 親要素に合わせて広がる */
     }
     div[data-testid="column"] {
-        min-width: 0px !important; /* 限界まで縮小許可 */
-        padding: 0 1px !important;
-        overflow: hidden !important; /* はみ出し防止 */
-        flex: 1 1 auto !important; /* 自動で幅を調整 */
+        min-width: 0px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        flex: 1 1 auto !important;
     }
 
-    /* 3. 数の入力欄（矢印復活・はみ出し防止） */
-    div[data-testid="stNumberInput"] { 
-        margin: 0 !important; 
-        width: 100% !important; /* 親カラムに合わせる */
-    }
-    div[data-testid="stNumberInput"] input {
-        padding: 0 2px !important; /* 文字が切れないよう調整 */
-        text-align: center !important;
-        height: 30px !important; /* タップしやすい高さ */
-        font-size: 13px !important;
-        min-width: 0 !important; /* 縮小許可 */
-    }
-    /* Streamlit標準の増減ボタンを表示させるため、無理な隠蔽CSSは削除 */
+    /* 数量入力欄の調整（上下中央） */
+    div[data-testid="stNumberInput"] { margin: 0 !important; }
+    div[data-testid="stNumberInput"] input { text-align: center; padding: 0; }
 
-    /* 4. ヘッダーのデザイン（黒背景） */
+    /* ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
-        padding: 6px 0px;
+        padding: 8px 0px;
         font-weight: bold;
         font-size: 10px;
         text-align: center;
@@ -67,70 +60,68 @@ st.markdown("""
         display: flex;
         align-items: center;
         margin-top: 5px;
-        width: 100%;
     }
 
-    /* 5. 行のデザイン */
+    /* 行のデザイン（枠線あり） */
     .row-container {
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
         border-right: 1px solid #ccc;
-        padding: 6px 0;
+        padding: 8px 0;
         background-color: #fff;
         display: flex;
         align-items: center;
-        width: 100%;
     }
 
-    /* 6. ボタンのデザイン（自動幅調整） */
-    button {
+    /* ボタンのスタイル調整（use_container_widthで広がるが、高さなどを微調整） */
+    div.stButton > button {
         padding: 0 !important;
-        height: 26px !important;
         font-size: 10px !important;
         font-weight: bold !important;
         line-height: 1 !important;
-        border-radius: 3px !important;
-        width: 100% !important; /* 親カラムいっぱいに広がる */
-        min-width: 0 !important; /* 縮小許可 */
+        border-radius: 4px !important;
+        min-height: 32px !important; /* タップしやすい高さ */
+        height: 32px !important;
     }
 
-    /* 入庫ボタン */
+    /* 入庫ボタン（薄緑文字＋薄緑枠） */
     button[kind="secondary"] {
         background-color: transparent !important;
         color: #28a745 !important;
         border: 1px solid #28a745 !important;
     }
-    button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
+    button[kind="secondary"]:active, button[kind="secondary"]:focus {
+        background-color: #e6f9e6 !important;
+        color: #28a745 !important;
+        border: 1px solid #28a745 !important;
+    }
 
-    /* 出庫ボタン */
+    /* 出庫ボタン（朱色文字＋朱色枠） */
     button[kind="primary"] {
         background-color: transparent !important;
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
-    button[kind="primary"]:active { background-color: #fceceb !important; }
-    /* 文字色強制 */
+    button[kind="primary"]:active, button[kind="primary"]:focus {
+        background-color: #fceceb !important;
+        color: #e74c3c !important;
+        border: 1px solid #e74c3c !important;
+    }
+    /* 強制的に文字色を適用 */
     button[kind="primary"] p { color: #e74c3c !important; }
 
-    /* 更新ボタン */
+    /* 更新ボタン（グレー） */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
-        height: 30px !important;
     }
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
-    /* ★修正：教科書名を大きく見やすく */
-    .book-name { 
-        font-size: 14px; /* 大きく！ */
-        font-weight: bold; 
-        line-height: 1.1; 
-        padding-left: 2px;
-        white-space: normal; /* 折り返し許可 */
-    }
-    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
-    .stock-val { font-size: 13px; font-weight: bold; text-align: center; }
+    /* 文字スタイル */
+    .book-name { font-size: 13px; font-weight: bold; line-height: 1.1; padding-left: 4px; }
+    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 4px; }
+    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -188,7 +179,7 @@ def main():
     with c_search:
         search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
     with c_update:
-        if st.button("↻ 更新"): st.rerun()
+        if st.button("↻ 更新", use_container_width=True): st.rerun()
 
     # 並べ替え
     sort_mode = st.radio("", ["追加日順", "在庫少ない順"], horizontal=True, label_visibility="collapsed")
@@ -207,12 +198,10 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（自動調整対応版）
+    # 在庫リスト
     # ---------------------------------------------------------
     with tab_list:
-        # ★修正：幅比率
-        # 教科書名(3.5): 在庫(1.2): 数(1.2): 操作(1.8)
-        # この比率は「Flexboxの重み」として機能し、画面幅に合わせて自動伸縮します
+        # 指定比率 [3.5, 1.2, 1.2, 1.8]
         col_ratio = [3.5, 1.2, 1.2, 1.8]
 
         # ヘッダー行
@@ -243,11 +232,11 @@ def main():
             # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成（gap="small"）
+            # カラム作成
             c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
             
             with c1:
-                # 教科書名（文字サイズ大）
+                # 教科書名
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -265,17 +254,25 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（矢印復活・自動幅調整）
-                # keyにuuidを使うとリセットされるが再描画が重くなるので固定ID
-                qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
+                # 数量（矢印あり・初期値1・幅いっぱい）
+                # 1. 魔法のパラメータ use_container_width=True を使う
+                qty = st.number_input(
+                    "q", 
+                    min_value=1, 
+                    value=1, 
+                    label_visibility="collapsed", 
+                    key=f"q_{item_id}"
+                    # ※注意: number_input は一部バージョンでまだ use_container_width 非対応の場合があるため、CSSでも幅100%を強制しています
+                )
                 
             with c4:
-                # 操作（ボタン2つ上下）
-                # ボタンも親カラム幅に合わせて自動で幅が決まります
-                if st.button("入庫", key=f"in_{item_id}"):
+                # 操作：ボタン2つを上下に配置
+                # 1. 魔法のパラメータ use_container_width=True を使う
+                if st.button("入庫", key=f"in_{item_id}", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
-                if st.button("出庫", key=f"out_{item_id}", type="primary"):
+                # 少し隙間を開けずに直後に配置
+                if st.button("出庫", key=f"out_{item_id}", type="primary", use_container_width=True):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
 
             st.markdown('</div>', unsafe_allow_html=True)
@@ -304,6 +301,7 @@ def main():
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
+            # 1. 魔法のパラメータ use_container_width=True を使う
             if st.form_submit_button("登録", use_container_width=True):
                 fname = name_in if name_sel == "新規入力" else name_sel
                 fpub = pub_in if pub_sel == "その他" else pub_sel
