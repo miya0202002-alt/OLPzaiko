@@ -8,83 +8,109 @@ from datetime import datetime
 # ---------------------------------------------------------
 # 設定
 # ---------------------------------------------------------
-st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="collapsed")
+# 1. ページ設定は "centered" に戻します
+st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
 
 # ---------------------------------------------------------
-# CSS (スマホ最適化・フッター極小化・ズレ防止)
+# CSS (スマホ対応：PCは横並び、スマホは縦積み)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-    /* 1. 全体設定 */
+    /* 全体フォント */
     body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
     
+    /* アプリ全体の横幅調整（スマホでの横揺れ防止） */
     .block-container { 
         padding-top: 3rem !important; 
         padding-bottom: 120px !important; /* フッター用余白 */
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
+        padding-left: 1rem !important; 
+        padding-right: 1rem !important; 
         max-width: 100% !important;
     }
 
-    /* PC画面（幅640px以上）の時は、画面の50%の幅にする */
+    /* PC画面（幅640px以上）の時は、画面の中央に寄せる */
     @media (min-width: 640px) {
         .block-container {
-            max-width: 600px !important;
+            max-width: 700px !important;
             margin: 0 auto !important;
         }
+        /* フッターもPCでは幅を合わせる */
         section[data-testid="stSidebar"] {
-            width: 600px !important;
+            width: 700px !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
         }
     }
 
-    /* 2. タイトル */
+    /* ========== スマホ画面（幅640px以下）の時の強制ルール ========== */
+    @media (max-width: 640px) {
+        
+        /* 1. カラム（列）の強制縦積み */
+        /* 横並びの設定を解除し、全ての列を縦1列（幅100%）にします */
+        div[data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 100% !important;
+            margin-bottom: 8px !important; /* 縦並びの要素間に隙間を作る */
+        }
+
+        /* 2. ヘッダーや行のコンテナが広がらないようにする */
+        div[data-testid="stVerticalBlock"] {
+            max-width: 100% !important;
+            overflow-x: hidden !important; /* 横スクロールを禁止 */
+        }
+
+        /* 3. ボタンや入力欄のサイズ調整 */
+        .stButton button, div[data-testid="stNumberInput"] input {
+            width: 100% !important;
+            min-width: 0px !important; /* 最小幅制限を解除 */
+        }
+        
+        /* スマホではリストのヘッダー（項目名）を隠す（縦積みだとズレて見えるため） */
+        .table-header {
+            display: none !important;
+        }
+        
+        /* 行の区切りを強調 */
+        hr {
+            margin-top: 1rem !important;
+            margin-bottom: 1rem !important;
+            border-top: 2px solid #eee !important;
+        }
+    }
+    /* ========== ここまで ========== */
+
+
+    /* タイトル */
     h3 { font-size: 1.4rem !important; margin-bottom: 0.5rem; font-weight: bold; }
 
-    /* 3. 強制横並び & はみ出し防止 */
-    div[data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 2px !important;
-        align-items: center !important;
-    }
-    div[data-testid="column"] {
-        min-width: 0px !important;
-        padding: 0 1px !important;
-        overflow: hidden !important;
-        flex: 1 1 auto !important;
-    }
-
-    /* 4. 下部固定パネル（サイドバー改造・極小化） */
+    /* 下部固定パネル（フッター） */
     section[data-testid="stSidebar"] {
         position: fixed !important;
         bottom: 0 !important;
         top: auto !important;
         left: 0 !important;
-        height: auto !important; /* 中身に合わせて縮む */
+        height: auto !important;
         background-color: #fff !important;
         border-top: 1px solid #ccc !important;
         box-shadow: 0 -2px 8px rgba(0,0,0,0.1) !important;
         z-index: 999999 !important;
-        padding: 0px !important; /* 余白ゼロ */
+        padding: 0px !important;
     }
     
-    /* サイドバー内部の余白も削除 */
+    /* サイドバー内部調整 */
     section[data-testid="stSidebar"] .block-container {
-        padding: 8px 10px !important;
-        padding-bottom: 8px !important;
+        padding: 10px !important;
         margin: 0 !important;
         overflow: hidden !important;
     }
     
-    /* 不要なパーツの削除 */
-    div[data-testid="stSidebarNav"], 
-    button[kind="header"],
-    div[data-testid="collapsedControl"], 
-    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+    /* 不要なパーツ削除 */
+    div[data-testid="stSidebarNav"], button[kind="header"], [data-testid="stSidebarCollapsedControl"] { 
+        display: none !important; 
+    }
 
-    /* 5. ヘッダーとリストのデザイン（ズレ防止） */
+    /* ヘッダーボックス（PC用） */
     .header-box {
         background-color: #222;
         color: white;
@@ -97,49 +123,31 @@ st.markdown("""
         display: block;
     }
 
-    /* リスト内のボタン（教科書名） */
+    /* 教科書選択ボタン */
     div.row-btn button {
         background-color: white !important;
         color: #333 !important;
         border: 1px solid #eee !important;
         text-align: left !important;
         font-weight: bold !important;
-        font-size: 13px !important;
-        min-height: 42px !important;
-        padding: 5px 8px !important;
+        font-size: 14px !important; /* 少し大きく */
+        padding: 8px 10px !important;
         white-space: normal !important;
-        line-height: 1.2 !important;
+        line-height: 1.3 !important;
         width: 100% !important;
-        display: block !important;
     }
     div.row-btn button:focus {
         border-color: #28a745 !important;
         background-color: #f0fff0 !important;
     }
 
-    /* 6. フッター内のボタン・入力欄（高さを揃える） */
-    .footer-btn button {
-        height: 36px !important;
-        font-size: 12px !important;
-        font-weight: bold !important;
-        border-radius: 4px !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
+    /* ボタン・入力欄の色設定 */
+    .footer-btn button { height: 40px !important; font-weight: bold !important; }
+    div[data-testid="stNumberInput"] input { height: 40px !important; text-align: center !important; }
     
-    div[data-testid="stNumberInput"] input {
-        height: 36px !important;
-        text-align: center !important;
-        font-size: 14px !important;
-        padding: 0 !important;
-    }
-    div[data-testid="stNumberInput"] { margin: 0 !important; }
-
-    /* 色設定 */
     .btn-in button { background-color: #28a745 !important; color: white !important; border: none; }
     .btn-out button { background-color: #e74c3c !important; color: white !important; border: none; }
     
-    /* 無効時のスタイル */
     button:disabled {
         background-color: #e0e0e0 !important;
         color: #999 !important;
@@ -202,8 +210,7 @@ def main():
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
     # ---------------------------------------------------------
-    # メニュー切り替え（タブではなくラジオボタンで制御）
-    # これにより、フッターの表示/非表示を完全に制御できます
+    # メニュー切り替え（ラジオボタン）
     # ---------------------------------------------------------
     menu = st.radio("メニュー", ["在庫リスト", "⊕教科書を追加"], horizontal=True, label_visibility="collapsed")
 
@@ -227,8 +234,7 @@ def main():
         else:
             df_display = df_items
 
-        # --- ヘッダー行（st.columnsを使用しズレを防止） ---
-        # 比率: [教科書名(3.5), 在庫(1.5)] -> 合計5
+        # --- ヘッダー行（スマホではCSSで非表示になります） ---
         h_cols = st.columns([3.5, 1.5])
         h_cols[0].markdown('<div class="header-box" style="text-align:left; padding-left:10px;">教科書名 (タップして選択)</div>', unsafe_allow_html=True)
         h_cols[1].markdown('<div class="header-box">在庫</div>', unsafe_allow_html=True)
@@ -244,13 +250,15 @@ def main():
             stock_color = "#e74c3c" if is_low else "#333"
             stock_weight = "bold" if is_low else "bold"
 
-            # 行の表示（ヘッダーと全く同じ比率）
+            # 行の表示
+            # PCでは横並び、スマホではCSSにより自動で縦積み（カード化）されます
             cols = st.columns([3.5, 1.5])
             
             with cols[0]:
                 # 教科書名ボタン
                 st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                if st.button(f"{name}", key=f"sel_{item_id}", use_container_width=True):
+                label = f"{name}"
+                if st.button(label, key=f"sel_{item_id}", use_container_width=True):
                     st.session_state.selected_book_id = item_id
                     st.session_state.selected_book_name = name
                     st.session_state.selected_book_stock = stock
@@ -259,8 +267,8 @@ def main():
             with cols[1]:
                 # 在庫数
                 st.markdown(f"""
-                <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
-                    <span style="font-size:16px; font-weight:{stock_weight}; color:{stock_color};">{stock}</span>
+                <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center; padding: 5px;">
+                    <span style="font-size:16px; font-weight:{stock_weight}; color:{stock_color};">在庫: {stock}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -268,13 +276,12 @@ def main():
 
         # --- フッター操作パネル（在庫リスト時のみ表示） ---
         with st.sidebar:
-            # 1行目: 情報表示（極小）
             display_name = st.session_state.selected_book_name
             display_stock = f"(在庫: {st.session_state.selected_book_stock})" if st.session_state.selected_book_id else ""
-            st.markdown(f"<div style='font-size:11px; color:#555; margin-bottom:4px; white-space:nowrap; overflow:hidden;'>選択中: <b>{display_name}</b> {display_stock}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:12px; color:#555; margin-bottom:5px; white-space:nowrap; overflow:hidden;'>選択中: <b>{display_name}</b> {display_stock}</div>", unsafe_allow_html=True)
             
-            # 2行目: 操作ボタン（1行に収める）
-            # 比率: 数量(1) 入庫(1.5) 出庫(1.5)
+            # 操作ボタン（PCは横並び、スマホはCSSで縦積みになるのを防ぐため、ここだけは横並び維持のCSSが効くようにする）
+            # ただしフッター内はスペースが狭いので、st.columns で配置
             c_qty, c_in, c_out = st.columns([1, 1.5, 1.5], gap="small")
             
             is_disabled = st.session_state.selected_book_id is None
@@ -284,7 +291,6 @@ def main():
             
             with c_in:
                 st.markdown('<div class="footer-btn btn-in">', unsafe_allow_html=True)
-                # use_container_width=True で幅いっぱいに
                 if st.button("入庫", key="footer_in", disabled=is_disabled, use_container_width=True):
                     update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -296,7 +302,7 @@ def main():
                 st.markdown('</div>', unsafe_allow_html=True)
 
     # =========================================================
-    # 「教科書を追加」モード（フッターは表示されない）
+    # 「⊕教科書を追加」モード
     # =========================================================
     elif menu == "⊕教科書を追加":
         st.markdown("##### 新規登録")
@@ -330,7 +336,6 @@ def main():
                     ws_items.append_row([int(nid), str(fname), str(isbn), str(fpub), int(stock), int(alert), str(loc)])
                     add_log(ws_logs, "新規登録", nid, fname, stock)
                     st.success(f"登録完了: {fname}")
-                    # 登録後はリストに戻ることも可能だが、連続登録のために維持
                     st.rerun()
 
 def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity, action_type):
