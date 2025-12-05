@@ -17,15 +17,13 @@ st.markdown("""
     /* 1. 基本設定 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* ★修正：上部の見切れ防止 & 画面幅の制限（1/2に近づける） */
+    /* 左右の余白調整 */
     .block-container { 
-        padding-top: 3.5rem !important; /* 上の余白を増やして見切れ防止 */
+        padding-top: 0.5rem; 
         padding-bottom: 2rem; 
         padding-left: 0.5rem !important; 
         padding-right: 0.5rem !important; 
-        width: 94% !important;          /* 画面いっぱいではなく少し余白を作る */
-        max-width: 600px !important;    /* PCでも広がりすぎないように制限 */
-        margin: 0 auto !important;      /* 中央寄せ */
+        max-width: 100% !important;
     }
 
     /* 2. タイトルの調整 */
@@ -34,10 +32,9 @@ st.markdown("""
         margin-bottom: 0.5rem; 
         white-space: normal !important;
         overflow: visible !important;
-        line-height: 1.5 !important;
     }
 
-    /* 3. 強制横並び設定 */
+    /* 3. 横並び設定（PC用デフォルト） */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
@@ -101,7 +98,7 @@ st.markdown("""
         width: 100% !important;
     }
 
-    /* 入庫ボタン（薄緑文字＋薄緑枠） */
+    /* 入庫ボタン */
     button[kind="secondary"] {
         background-color: transparent !important;
         color: #28a745 !important;
@@ -109,16 +106,16 @@ st.markdown("""
     }
     button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
-    /* 出庫ボタン（朱色文字＋朱色枠） */
+    /* 出庫ボタン */
     button[kind="primary"] {
         background-color: transparent !important;
-        color: #e74c3c !important; /* ★朱色文字 */
-        border: 1px solid #e74c3c !important; /* ★朱色枠 */
+        color: #e74c3c !important;
+        border: 1px solid #e74c3c !important;
     }
     button[kind="primary"]:active { background-color: #fceceb !important; }
-    button[kind="primary"] p { color: #e74c3c !important; } /* 文字色強制 */
+    button[kind="primary"] p { color: #e74c3c !important; }
 
-    /* 更新ボタンのみ例外（グレー背景） */
+    /* 更新ボタン */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
@@ -127,16 +124,54 @@ st.markdown("""
     }
     div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
-    /* ★修正：教科書名の文字をさらに大きく */
+    /* 文字スタイル */
     .book-name { 
-        font-size: 16px; /* ★大きく！ */
+        font-size: 16px; 
         font-weight: bold; 
         line-height: 1.1; 
         padding-left: 2px;
-        white-space: normal; 
+        white-space: normal;
     }
     .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
     .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
+
+    /* ▼▼▼ 追加：スマホ用レスポンシブ設定（ご指示いただいた部分） ▼▼▼ */
+    @media (max-width: 640px) {
+        
+        /* コンテナ（行）のFlex設定を解除して折り返しを許可 */
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: column !important; /* 縦並びにする */
+            align-items: stretch !important;
+            gap: 10px !important;
+        }
+
+        /* カラムを縦並び（ブロック要素）に強制変換する */
+        div[data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 100% !important;
+            padding-bottom: 5px !important; /* 各項目の間に少し隙間 */
+        }
+        
+        /* もし行全体を囲むコンテナがある場合、その幅も制限する */
+        div[data-testid="stVerticalBlock"] > div {
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+
+        /* スマホ時はヘッダーを非表示にする（縦積みだとズレて見えるため） */
+        .table-header {
+            display: none !important;
+        }
+        
+        /* スマホ時は行のコンテナも縦並びに対応 */
+        .row-container {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            height: auto !important; /* 高さを自動調整 */
+            padding: 10px !important;
+        }
+    }
     
 </style>
 """, unsafe_allow_html=True)
@@ -210,14 +245,13 @@ def main():
     else:
         df_display = df_items
 
-    tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
+    # ★修正：タブ名を変更
+    tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
     # 在庫リスト
     # ---------------------------------------------------------
     with tab_list:
-        # ★修正：教科書名の幅を半分に（1.8）
-        # [名前1.8, 在庫1.2, 数1.2, 操作1.8] 合計6
         col_ratio = [1.8, 1.2, 1.2, 1.8]
 
         # ヘッダー行
@@ -249,10 +283,10 @@ def main():
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
             # カラム作成
-            c1, c2, c3, c4 = st.columns(col_ratio, gap="small")
+            c1, c2, c3, c4 = st.columns(col_ratio)
             
             with c1:
-                # 教科書名（大きく）
+                # 教科書名
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -270,18 +304,11 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（矢印あり・初期値1）
-                qty = st.number_input(
-                    "q", 
-                    min_value=1, 
-                    value=1, 
-                    label_visibility="collapsed", 
-                    key=f"q_{item_id}"
-                )
+                # 数量
+                qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
-                # 操作：ボタン2つを上下に配置
-                # ★修正：出庫ボタンの文字色を朱色に（CSSで適用済み）
+                # 操作
                 if st.button("入庫", key=f"in_{item_id}"):
                     update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
                 
