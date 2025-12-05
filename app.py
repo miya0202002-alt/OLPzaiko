@@ -11,27 +11,29 @@ from datetime import datetime
 st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
 
 # ---------------------------------------------------------
-# CSS
+# CSS (スマホ完全対応・ヘッダー文字縮小版)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
     /* 1. 全体設定 */
     body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
     
+    /* 画面の余白を極限まで削る */
     .block-container { 
-        padding-top: 3rem !important; 
+        padding-top: 3.5rem !important; 
         padding-bottom: 100px !important; 
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
+        padding-left: 0.1rem !important; 
+        padding-right: 0.1rem !important; 
         max-width: 100% !important;
-        overflow-x: hidden !important;
     }
 
-    /* PC画面用（幅制限） */
+    /* PC画面用設定 */
     @media (min-width: 640px) {
         .block-container {
             max-width: 600px !important;
             margin: 0 auto !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
         }
         section[data-testid="stSidebar"] {
             width: 600px !important;
@@ -42,23 +44,23 @@ st.markdown("""
 
     /* 2. タイトル */
     h3 { 
-        font-size: 1.8rem !important; 
+        font-size: 1.4rem !important; 
         margin-bottom: 0.5rem; 
         font-weight: 900; 
-        color: #111;
+        padding-left: 0.5rem;
     }
 
     /* 3. 強制横並び */
     div[data-testid="stHorizontalBlock"] {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 0px !important; 
+        gap: 1px !important;
         align-items: center !important;
         width: 100% !important;
     }
     div[data-testid="column"] {
         min-width: 0px !important;
-        padding: 0 2px !important;
+        padding: 0 1px !important;
         overflow: hidden !important;
         flex: 1 1 auto !important;
     }
@@ -79,12 +81,12 @@ st.markdown("""
     }
     
     section[data-testid="stSidebar"] .block-container {
-        padding: 10px 10px 15px 10px !important;
+        padding: 8px 5px 15px 5px !important;
         margin: 0 !important;
         overflow: hidden !important;
     }
     
-    /* 折りたたみボタン抹消 */
+    /* 不要パーツ削除 */
     div[data-testid="stSidebarNav"], 
     button[kind="header"],
     div[data-testid="collapsedControl"], 
@@ -96,17 +98,21 @@ st.markdown("""
         width: 0 !important;
     }
 
-    /* 5. ヘッダーとリストのデザイン */
-    .header-text {
+    /* 5. ヘッダーのデザイン（★文字を小さく修正！） */
+    .header-box {
         background-color: #222;
         color: white;
         font-weight: bold;
-        font-size: 11px;
+        font-size: 10px !important; /* ★小さく */
         text-align: center;
-        padding: 8px 0;
-        border-radius: 4px;
+        padding: 4px 0 !important;  /* ★余白削減 */
+        border-radius: 3px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.1;
         width: 100%;
-        display: block;
     }
 
     /* リスト内のボタン */
@@ -117,10 +123,10 @@ st.markdown("""
         color: #333 !important;
         text-align: left !important;
         font-weight: bold !important;
-        font-size: 15px !important;
-        padding: 5px 0 !important;
+        font-size: 13px !important; /* 少し小さくして収まりよく */
+        padding: 4px 0 !important;
         white-space: normal !important;
-        line-height: 1.3 !important;
+        line-height: 1.2 !important;
         width: 100% !important;
         display: block !important;
         height: auto !important;
@@ -133,19 +139,16 @@ st.markdown("""
 
     /* 6. フッター内のボタン・入力欄 */
     .footer-btn button {
-        height: 40px !important;
-        font-size: 14px !important;
+        height: 36px !important;
+        font-size: 12px !important;
         font-weight: bold !important;
-        border-radius: 6px !important;
+        border-radius: 4px !important;
         padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
     }
-    
     div[data-testid="stNumberInput"] input {
-        height: 40px !important;
+        height: 36px !important;
         text-align: center !important;
-        font-size: 16px !important;
+        font-size: 14px !important;
         padding: 0 !important;
     }
     div[data-testid="stNumberInput"] { margin: 0 !important; }
@@ -167,6 +170,9 @@ st.markdown("""
         color: #ccc !important;
         background-color: white !important;
     }
+
+    /* 区切り線 */
+    hr { margin: 0 !important; border-top: 1px solid #eee !important; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -209,7 +215,7 @@ def load_data():
 def main():
     if 'selected_book_id' not in st.session_state:
         st.session_state.selected_book_id = None
-        st.session_state.selected_book_name = ""
+        st.session_state.selected_book_name = "（未選択）"
         st.session_state.selected_book_stock = 0
 
     st.markdown("### 教科書在庫管理")
@@ -223,49 +229,31 @@ def main():
         if col in df_items.columns:
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
-    # メニュー切り替え
-    menu = st.radio("メニュー", ["在庫リスト", "⊕教科書を追加"], horizontal=True, label_visibility="collapsed")
+    # 検索・更新
+    c_search, c_update = st.columns([3.5, 1])
+    with c_search:
+        search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
+    with c_update:
+        if st.button("↻ 更新"): 
+            st.session_state.selected_book_id = None
+            st.rerun()
 
-    # =========================================================
-    # 「在庫リスト」モード
-    # =========================================================
-    if menu == "在庫リスト":
-        
-        # 検索・更新
-        c_search, c_update = st.columns([3.5, 1])
-        with c_search:
-            search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
-        with c_update:
-            if st.button("↻ 更新", use_container_width=True): 
-                st.session_state.selected_book_id = None
-                st.rerun()
+    tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
-        # 並べ替え機能
-        sort_mode = st.radio("", ["追加日順", "在庫少ない順", "名前順"], horizontal=True, label_visibility="collapsed")
-        
-        if sort_mode == "追加日順" and '商品ID' in df_items.columns:
-            df_items = df_items.sort_values('商品ID', ascending=False)
-        elif sort_mode == "在庫少ない順":
-            df_items = df_items.sort_values('現在在庫数', ascending=True)
-        elif sort_mode == "名前順":
-            df_items = df_items.sort_values('教科書名', ascending=True)
-
+    # ---------------------------------------------------------
+    # 在庫リスト
+    # ---------------------------------------------------------
+    with tab_list:
         if search_query:
             mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
             df_display = df_items[mask]
         else:
             df_display = df_items
 
-        # --- ヘッダー行 (比率変更: 2.5 : 1.0) ---
-        # 教科書名(2.5), 在庫(1.0)
-        h1, h2 = st.columns([2.5, 1.0])
-        h1.markdown('<div class="header-text" style="text-align:left; padding-left:5px; background:none; color:#333;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
-        h2.markdown('<div class="header-text">在庫</div>', unsafe_allow_html=True)
-        st.markdown("<hr style='margin:0; border-top:2px solid #333;'>", unsafe_allow_html=True)
-
-        # --- データ一覧 ---
-        if df_display.empty:
-            st.info("データがありません")
+        # ヘッダー行（余白削減）
+        h1, h2 = st.columns([4, 1.5])
+        h1.markdown('<div class="header-box" style="justify-content:flex-start; padding-left:5px;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
+        h2.markdown('<div class="header-box">在庫</div>', unsafe_allow_html=True)
 
         for index, row in df_display.iterrows():
             item_id = int(row['商品ID'])
@@ -276,56 +264,59 @@ def main():
             is_low = stock <= alert
             stock_color = "#e74c3c" if is_low else "#333"
             
-            # 行の表示 (ヘッダーと同じ比率 2.5 : 1.0)
-            c1, c2 = st.columns([2.5, 1.0])
+            # データ行
+            c1, c2 = st.columns([4, 1.5])
             
             with c1:
-                # 教科書名
                 st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                if st.button(f"{name}", key=f"sel_{item_id}", use_container_width=True):
+                label = f"{name}"
+                if st.button(label, key=f"sel_{item_id}", use_container_width=True):
                     st.session_state.selected_book_id = item_id
                     st.session_state.selected_book_name = name
                     st.session_state.selected_book_stock = stock
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with c2:
-                # 在庫数
                 st.markdown(f"""
                 <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
-                    <span style="font-size:18px; font-weight:bold; color:{stock_color};">{stock}</span>
+                    <span style="font-size:16px; font-weight:bold; color:{stock_color};">{stock}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
-            st.markdown("<hr style='margin:0; border-top:1px solid #eee;'>", unsafe_allow_html=True)
+            st.markdown("<hr>", unsafe_allow_html=True)
 
-        # --- フッター操作パネル ---
-        with st.sidebar:
-            info_text = f"選択中: <b>{st.session_state.selected_book_name}</b>" if st.session_state.selected_book_id else "（リストから教科書を選択してください）"
-            st.markdown(f"<div style='font-size:12px; color:#555; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{info_text}</div>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    # 下部固定操作パネル
+    # ---------------------------------------------------------
+    with st.sidebar:
+        display_name = st.session_state.selected_book_name
+        if st.session_state.selected_book_id is None:
+            display_name = "（リストから教科書を選択してください）"
             
-            c_qty, c_in, c_out = st.columns([1, 1.2, 1.2], gap="small")
+        st.markdown(f"<div style='font-size:11px; color:#555; margin-bottom:2px;'>選択中: <b>{display_name}</b></div>", unsafe_allow_html=True)
+        
+        c_qty, c_in, c_out = st.columns([1.2, 1.5, 1.5], gap="small")
+        is_disabled = st.session_state.selected_book_id is None
+        
+        with c_qty:
+            qty = st.number_input("qty", min_value=1, value=1, label_visibility="collapsed")
             
-            is_disabled = st.session_state.selected_book_id is None
+        with c_in:
+            st.markdown('<div class="footer-btn btn-in">', unsafe_allow_html=True)
+            if st.button("入庫", key="footer_in", disabled=is_disabled, use_container_width=True):
+                update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
+            st.markdown('</div>', unsafe_allow_html=True)
             
-            with c_qty:
-                qty = st.number_input("qty", min_value=1, value=1, label_visibility="collapsed")
-            
-            with c_in:
-                st.markdown('<div class="footer-btn btn-in">', unsafe_allow_html=True)
-                if st.button("入庫", key="footer_in", disabled=is_disabled, use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-            with c_out:
-                st.markdown('<div class="footer-btn btn-out">', unsafe_allow_html=True)
-                if st.button("出庫", key="footer_out", disabled=is_disabled, use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "出庫")
-                st.markdown('</div>', unsafe_allow_html=True)
+        with c_out:
+            st.markdown('<div class="footer-btn btn-out">', unsafe_allow_html=True)
+            if st.button("出庫", key="footer_out", disabled=is_disabled, use_container_width=True):
+                update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "出庫")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # =========================================================
-    # 「教科書を追加」モード
-    # =========================================================
-    elif menu == "⊕教科書を追加":
+    # ---------------------------------------------------------
+    # 新規登録タブ
+    # ---------------------------------------------------------
+    with tab_add:
         st.markdown("##### 新規登録")
         with st.form("add"):
             names = list(df_items['教科書名'].unique()) if '教科書名' in df_items.columns else []
@@ -387,4 +378,3 @@ def add_log(ws_logs, action_type, item_id, item_name, change_val):
 
 if __name__ == "__main__":
     main()
-
