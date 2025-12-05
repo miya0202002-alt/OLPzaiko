@@ -17,60 +17,55 @@ st.markdown("""
     /* 1. 基本設定 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; color: #333; margin: 0; padding: 0; }
     
-    /* 左右の余白調整 */
+    /* 2. 画面幅と余白の制御（PCは1/2、スマホは全幅） */
     .block-container { 
-        padding-top: 0.5rem; 
-        padding-bottom: 2rem; 
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
-        max-width: 100% !important;
+        padding-top: 4rem !important; /* タイトル見切れ防止のために広げる */
+        padding-bottom: 5rem; 
+        padding-left: 1rem !important; 
+        padding-right: 1rem !important; 
+    }
+    
+    /* PC画面用（幅を制限） */
+    @media (min-width: 640px) {
+        .block-container {
+            max-width: 700px !important; /* 画面の約1/2 */
+            margin: 0 auto !important;
+        }
+    }
+    /* スマホ画面用（幅いっぱい） */
+    @media (max-width: 640px) {
+        .block-container {
+            max-width: 100% !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
     }
 
-    /* 2. タイトルの調整 */
+    /* 3. タイトルの調整 */
     h3 { 
-        font-size: 1.2rem !important; 
-        margin-bottom: 0.5rem; 
-        white-space: normal !important;
-        overflow: visible !important;
-    }
-
-    /* 3. 横並び設定（PC用デフォルト） */
-    div[data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 2px !important;
-        align-items: center !important;
-        width: 100% !important;
-    }
-    div[data-testid="column"] {
-        min-width: 0px !important;
-        padding: 0 1px !important;
-        overflow: hidden !important;
-        flex: 1 1 auto !important;
+        font-size: 1.5rem !important; 
+        margin-bottom: 1rem; 
+        font-weight: bold;
     }
 
     /* 4. 入力欄・ボタンの共通設定 */
     div[data-testid="stNumberInput"] input {
-        padding: 0 !important;
         text-align: center !important;
-        height: 28px !important;
-        font-size: 12px !important;
     }
-    div[data-testid="stNumberInput"] { margin: 0 !important; }
     div[data-testid="stTextInput"] { margin-bottom: 0px; }
 
     /* 5. ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
         color: white;
-        padding: 6px 0px;
+        padding: 8px 5px;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 12px;
         text-align: center;
         border-radius: 4px 4px 0 0;
         display: flex;
         align-items: center;
-        margin-top: 5px;
+        margin-top: 10px;
         width: 100%;
     }
 
@@ -79,99 +74,55 @@ st.markdown("""
         border-bottom: 1px solid #ccc;
         border-left: 1px solid #ccc;
         border-right: 1px solid #ccc;
-        padding: 6px 0;
+        padding: 8px 5px;
         background-color: #fff;
         display: flex;
         align-items: center;
         width: 100%;
     }
 
-    /* 7. ボタンのデザイン */
-    button {
-        padding: 0 !important;
-        height: 24px !important;
-        font-size: 10px !important;
+    /* 7. 操作パネルのボタンデザイン */
+    /* 通常時（選択済み）のスタイルはPython側で type="primary/secondary" で指定 */
+    /* ここでは共通スタイルを定義 */
+    div.stButton > button {
         font-weight: bold !important;
-        line-height: 1 !important;
-        border-radius: 3px !important;
-        transition: 0.2s;
+        border-radius: 6px !important;
+        height: 45px !important; /* 押しやすく大きく */
         width: 100% !important;
     }
 
-    /* 入庫ボタン */
+    /* 入庫ボタン（緑） */
     button[kind="secondary"] {
-        background-color: transparent !important;
         color: #28a745 !important;
-        border: 1px solid #28a745 !important;
+        border: 2px solid #28a745 !important;
+        background: white !important;
     }
-    button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
+    button[kind="secondary"]:hover, button[kind="secondary"]:active {
+        background-color: #e6f9e6 !important;
+    }
 
-    /* 出庫ボタン */
+    /* 出庫ボタン（朱色） */
     button[kind="primary"] {
-        background-color: transparent !important;
         color: #e74c3c !important;
-        border: 1px solid #e74c3c !important;
+        border: 2px solid #e74c3c !important;
+        background: white !important;
     }
-    button[kind="primary"]:active { background-color: #fceceb !important; }
-    button[kind="primary"] p { color: #e74c3c !important; }
-
-    /* 更新ボタン */
-    div.stHorizontalBlock > div:nth-child(2) button {
+    button[kind="primary"]:hover, button[kind="primary"]:active {
+        background-color: #fceceb !important;
+    }
+    
+    /* 無効状態（未選択時）のボタン：白黒グレー */
+    button:disabled {
+        border-color: #ccc !important;
+        color: #999 !important;
         background-color: #f0f0f0 !important;
-        color: #333 !important;
-        border: 1px solid #ccc !important;
-        height: 30px !important;
+        opacity: 0.7;
     }
-    div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
     /* 文字スタイル */
-    .book-name { 
-        font-size: 16px; 
-        font-weight: bold; 
-        line-height: 1.1; 
-        padding-left: 2px;
-        white-space: normal;
-    }
-    .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
-    .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
-
-    /* ▼▼▼ 追加：スマホ用レスポンシブ設定（ご指示いただいた部分） ▼▼▼ */
-    @media (max-width: 640px) {
-        
-        /* コンテナ（行）のFlex設定を解除して折り返しを許可 */
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: column !important; /* 縦並びにする */
-            align-items: stretch !important;
-            gap: 10px !important;
-        }
-
-        /* カラムを縦並び（ブロック要素）に強制変換する */
-        div[data-testid="column"] {
-            width: 100% !important;
-            flex: 1 1 auto !important;
-            min-width: 100% !important;
-            padding-bottom: 5px !important; /* 各項目の間に少し隙間 */
-        }
-        
-        /* もし行全体を囲むコンテナがある場合、その幅も制限する */
-        div[data-testid="stVerticalBlock"] > div {
-            max-width: 100% !important;
-            overflow-x: hidden !important;
-        }
-
-        /* スマホ時はヘッダーを非表示にする（縦積みだとズレて見えるため） */
-        .table-header {
-            display: none !important;
-        }
-        
-        /* スマホ時は行のコンテナも縦並びに対応 */
-        .row-container {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            height: auto !important; /* 高さを自動調整 */
-            padding: 10px !important;
-        }
-    }
+    .book-name { font-size: 14px; font-weight: bold; line-height: 1.2; text-align: left; }
+    .book-sub { font-size: 10px; color: #666; display: block; text-align: left; }
+    .stock-val { font-size: 14px; font-weight: bold; text-align: center; }
     
 </style>
 """, unsafe_allow_html=True)
@@ -225,7 +176,7 @@ def main():
             df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
 
     # 検索・更新エリア
-    c_search, c_update = st.columns([3.5, 1])
+    c_search, c_update = st.columns([3, 1])
     with c_search:
         search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
     with c_update:
@@ -245,22 +196,56 @@ def main():
     else:
         df_display = df_items
 
-    # ★修正：タブ名を変更
     tab_list, tab_add = st.tabs(["在庫リスト", "⊕教科書を追加"])
 
     # ---------------------------------------------------------
-    # 在庫リスト
+    # 在庫リスト（操作パネル分離型）
     # ---------------------------------------------------------
     with tab_list:
-        col_ratio = [1.8, 1.2, 1.2, 1.8]
+        
+        # --- 1. 操作パネル（常時表示・選択式） ---
+        st.markdown("---")
+        st.caption("▼ 操作する教科書を選択してください")
+        
+        # 教科書選択プルダウン（名前と在庫を表示）
+        # IDをキーにして一意に特定
+        options = {f"{row['教科書名']} (在庫: {row['現在在庫数']})": row['商品ID'] for index, row in df_display.iterrows()}
+        selected_label = st.selectbox("教科書選択", options=list(options.keys()), index=None, placeholder="教科書をタップして選択...", label_visibility="collapsed")
+        
+        selected_id = options[selected_label] if selected_label else None
+        
+        # 操作ボタンエリア
+        c_qty, c_in, c_out = st.columns([1, 1, 1], gap="small")
+        
+        with c_qty:
+            # 数量選択（初期値1）
+            qty = st.number_input("数量", min_value=1, value=1, key="panel_qty")
+            
+        with c_in:
+            # 入庫ボタン（選択なし時は無効化 disabled=True）
+            # disabled=TrueにするとStreamlitが自動でグレーアウトします
+            if st.button("入庫", key="panel_in", type="secondary", disabled=(selected_id is None), use_container_width=True):
+                if selected_id:
+                    # 最新の在庫数を取得して更新
+                    current_row = df_items[df_items['商品ID'] == selected_id].iloc[0]
+                    update_stock(ws_items, ws_logs, selected_id, current_row['教科書名'], int(current_row['現在在庫数']), qty, "入庫")
 
+        with c_out:
+            # 出庫ボタン（選択なし時は無効化）
+            if st.button("出庫", key="panel_out", type="primary", disabled=(selected_id is None), use_container_width=True):
+                if selected_id:
+                    current_row = df_items[df_items['商品ID'] == selected_id].iloc[0]
+                    update_stock(ws_items, ws_logs, selected_id, current_row['教科書名'], int(current_row['現在在庫数']), qty, "出庫")
+
+        st.markdown("---")
+
+        # --- 2. 在庫一覧（閲覧専用） ---
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:1.8; text-align:left; padding-left:4px;">教科書名</div>
-            <div style="flex:1.2; text-align:center;">在庫</div>
-            <div style="flex:1.2; text-align:center;">数</div>
-            <div style="flex:1.8; text-align:center;">操作</div>
+            <div style="flex:4; text-align:left; padding-left:5px;">教科書名</div>
+            <div style="flex:1.5; text-align:center;">在庫</div>
+            <div style="flex:1.5; text-align:center;">発注点</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -268,7 +253,6 @@ def main():
             st.info("データなし")
         
         for index, row in df_display.iterrows():
-            item_id = int(row['商品ID'])
             name = row['教科書名']
             stock = int(row['現在在庫数'])
             alert = int(row['発注点'])
@@ -282,11 +266,10 @@ def main():
             # 行コンテナ
             st.markdown(f'<div class="row-container" style="{bg_style}">', unsafe_allow_html=True)
             
-            # カラム作成
-            c1, c2, c3, c4 = st.columns(col_ratio)
+            # カラム（ボタンがないのでスッキリ）
+            c1, c2, c3 = st.columns([4, 1.5, 1.5])
             
             with c1:
-                # 教科書名
                 st.markdown(f"""
                 <div style="line-height:1.1;">
                     <div class="book-name">{name}</div>
@@ -295,25 +278,15 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c2:
-                # 在庫
                 st.markdown(f"""
-                <div style="text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%;">
+                <div style="text-align:center;">
                     <span class="stock-val" style="color:{stock_color};">{stock}</span>
                     {alert_badge}
                 </div>
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量
-                qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
-                
-            with c4:
-                # 操作
-                if st.button("入庫", key=f"in_{item_id}"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "入庫")
-                
-                if st.button("出庫", key=f"out_{item_id}", type="primary"):
-                    update_stock(ws_items, ws_logs, item_id, name, stock, qty, "出庫")
+                st.markdown(f'<div style="text-align:center; font-size:12px;">{alert}</div>', unsafe_allow_html=True)
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -341,7 +314,7 @@ def main():
             stock = c3.number_input("初期在庫", min_value=1, value=1)
             alert = c4.number_input("発注点", min_value=1, value=1)
             
-            if st.form_submit_button("登録"):
+            if st.form_submit_button("登録", use_container_width=True):
                 fname = name_in if name_sel == "新規入力" else name_sel
                 fpub = pub_in if pub_sel == "その他" else pub_sel
                 
