@@ -1,399 +1,434 @@
-import streamlit as st
-import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import json
-from datetime import datetime
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { Search, RotateCcw, Plus, Package, Archive, AlertCircle } from 'lucide-react';
 
-# ---------------------------------------------------------
-# 設定
-# ---------------------------------------------------------
-st.set_page_config(page_title="教科書在庫管理", layout="centered", initial_sidebar_state="expanded")
+// --- Firebase Configuration ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-# ---------------------------------------------------------
-# CSS (スマホ完全対応・フッター極小化・ボタン感削除)
-# ---------------------------------------------------------
-st.markdown("""
-<style>
-    /* 1. 全体設定 */
-    body { font-family: -apple-system, sans-serif; color: #333; margin: 0; padding: 0; }
-    
-    /* 画面幅の制限と余白設定 */
-    .block-container { 
-        padding-top: 3rem !important; 
-        padding-bottom: 100px !important; /* フッターのために空ける */
-        padding-left: 0.5rem !important; 
-        padding-right: 0.5rem !important; 
-        max-width: 100% !important;
-        overflow-x: hidden !important; /* 横スクロール禁止 */
-    }
+// --- Types ---
+interface Item {
+  id: string;
+  itemId: number;
+  name: string;
+  isbn: string;
+  publisher: string;
+  stock: number;
+  alert: number;
+  location: string;
+}
 
-    /* PC画面用（幅制限） */
-    @media (min-width: 640px) {
-        .block-container {
-            max-width: 600px !important;
-            margin: 0 auto !important;
-        }
-        section[data-testid="stSidebar"] {
-            width: 600px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-        }
-    }
+interface Log {
+  id: string;
+  date: any;
+  action: string;
+  itemId: number;
+  itemName: string;
+  change: number;
+}
 
-    /* 2. タイトル（大きく、絵文字なし） */
-    h3 { 
-        font-size: 1.8rem !important; 
-        margin-bottom: 0.5rem; 
-        font-weight: 900; 
-        color: #111;
-    }
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [view, setView] = useState<'list' | 'add'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Selection State
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [qty, setQty] = useState(1);
 
-    /* 3. 強制横並び & はみ出し防止（Flexbox） */
-    div[data-testid="stHorizontalBlock"] {
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 0px !important; /* 隙間ゼロ */
-        align-items: center !important;
-        width: 100% !important;
-    }
-    div[data-testid="column"] {
-        min-width: 0px !important;
-        padding: 0 2px !important;
-        overflow: hidden !important;
-        flex: 1 1 auto !important;
-    }
+  // Add Item Form State
+  const [newItem, setNewItem] = useState({
+    name: '',
+    publisher: '',
+    isbn: '',
+    location: '',
+    stock: 1,
+    alert: 5
+  });
 
-    /* 4. 下部固定パネル（サイドバー改造・高さ1/10以下へ） */
-    section[data-testid="stSidebar"] {
-        position: fixed !important;
-        bottom: 0 !important;
-        top: auto !important;
-        left: 0 !important;
-        height: auto !important;
-        min-height: 0 !important;
-        background-color: #fcfcfc !important;
-        border-top: 1px solid #ddd !important;
-        box-shadow: 0 -4px 6px rgba(0,0,0,0.05) !important;
-        z-index: 999999 !important;
-        padding: 0 !important;
-    }
-    
-    /* サイドバー内部の余白削除 */
-    section[data-testid="stSidebar"] .block-container {
-        padding: 10px 10px 15px 10px !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-    }
-    
-    /* ★折りたたみボタン等を抹消する最強設定★ */
-    div[data-testid="stSidebarNav"], 
-    button[kind="header"],
-    div[data-testid="collapsedControl"], 
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="stSidebarUserContent"] > div:first-child { 
-        display: none !important; 
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-    }
+  // --- Auth & Data Fetching ---
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+         // Custom token handling if needed
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
 
-    /* 5. ヘッダーとリストのデザイン（ズレ防止） */
-    .header-text {
-        background-color: #222;
-        color: white;
-        font-weight: bold;
-        font-size: 11px;
-        text-align: center;
-        padding: 8px 0;
-        border-radius: 4px;
-        width: 100%;
-        display: block;
-    }
+  useEffect(() => {
+    if (!user) return;
 
-    /* リスト内のボタン（教科書名）：ボタン感を消して「ただの文字」に見せる */
-    div.row-btn button {
-        background-color: transparent !important; /* 背景透明 */
-        border: none !important;                  /* 枠線なし */
-        box-shadow: none !important;              /* 影なし */
-        color: #333 !important;
-        text-align: left !important;
-        font-weight: bold !important;
-        font-size: 15px !important;               /* 大きく！ */
-        padding: 5px 0 !important;
-        white-space: normal !important;           /* 折り返し */
-        line-height: 1.3 !important;
-        width: 100% !important;
-        display: block !important;
-        height: auto !important;
-        min-height: auto !important;
-    }
-    /* 押した時の反応（薄いグレー） */
-    div.row-btn button:active, div.row-btn button:focus {
-        background-color: #f0f0f0 !important;
-        color: #000 !important;
-    }
+    // Fetch Items
+    const itemsRef = collection(db, 'artifacts', appId, 'public', 'data', 'textbook_items');
+    const unsubscribeItems = onSnapshot(itemsRef, (snapshot) => {
+      const itemsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item));
+      // Sort manually since simple query required
+      itemsData.sort((a, b) => a.itemId - b.itemId);
+      setItems(itemsData);
+    }, (error) => console.error("Error items:", error));
 
-    /* 6. フッター内のボタン・入力欄（高さを揃えてコンパクトに） */
-    .footer-btn button {
-        height: 40px !important;
-        font-size: 14px !important;
-        font-weight: bold !important;
-        border-radius: 6px !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-    }
-    
-    div[data-testid="stNumberInput"] input {
-        height: 40px !important;
-        text-align: center !important;
-        font-size: 16px !important;
-        padding: 0 !important;
-    }
-    div[data-testid="stNumberInput"] { margin: 0 !important; }
+    return () => {
+      unsubscribeItems();
+    };
+  }, [user]);
 
-    /* 色設定 */
-    .btn-in button { 
-        background-color: white !important; 
-        color: #28a745 !important; 
-        border: 2px solid #28a745 !important; 
+  // --- Handlers ---
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newItem.name || !newItem.publisher) return;
+
+    const maxId = items.length > 0 ? Math.max(...items.map(i => i.itemId)) : 0;
+    const nextId = maxId + 1;
+
+    try {
+      // Add Item
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'textbook_items'), {
+        itemId: nextId,
+        name: newItem.name,
+        isbn: newItem.isbn,
+        publisher: newItem.publisher,
+        stock: newItem.stock,
+        alert: newItem.alert,
+        location: newItem.location,
+        createdAt: serverTimestamp()
+      });
+
+      // Add Log
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'textbook_logs'), {
+        date: serverTimestamp(),
+        action: '新規登録',
+        itemId: nextId,
+        itemName: newItem.name,
+        change: newItem.stock
+      });
+
+      alert(`登録完了: ${newItem.name}`);
+      setNewItem({ name: '', publisher: '', isbn: '', location: '', stock: 1, alert: 5 });
+      setView('list');
+    } catch (err) {
+      console.error(err);
+      alert("エラーが発生しました");
     }
-    .btn-out button { 
-        background-color: white !important; 
-        color: #e74c3c !important; 
-        border: 2px solid #e74c3c !important; 
-    }
-    
-    /* 無効時のスタイル */
-    button:disabled {
-        border-color: #ddd !important;
-        color: #ccc !important;
-        background-color: white !important;
+  };
+
+  const handleStockUpdate = async (type: '入庫' | '出庫') => {
+    if (!user || !selectedItemId) return;
+
+    const item = items.find(i => i.id === selectedItemId);
+    if (!item) return;
+
+    const change = type === '入庫' ? qty : -qty;
+    const newStock = item.stock + change;
+
+    if (newStock < 0) {
+      alert("在庫不足です");
+      return;
     }
 
-</style>
-""", unsafe_allow_html=True)
+    try {
+      // Update Item
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'textbook_items', selectedItemId), {
+        stock: newStock
+      });
 
-JSON_FILE = 'secret_key.json' 
-SPREADSHEET_NAME = '在庫管理システム'
+      // Add Log
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'textbook_logs'), {
+        date: serverTimestamp(),
+        action: type,
+        itemId: item.itemId,
+        itemName: item.name,
+        change: change
+      });
 
-@st.cache_resource
-def get_connection():
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    if "gcp_service_account" in st.secrets:
-        key_dict = json.loads(st.secrets["gcp_service_account"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, scope)
-    else:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(JSON_FILE, scope)
-    client = gspread.authorize(creds)
-    return client
+      // Reset Qty but keep selection? Or mimic behavior provided: toast & stay
+      // We will mimic the behavior (rerun equivalent)
+    } catch (err) {
+      console.error(err);
+      alert("更新エラー");
+    }
+  };
 
-def load_data():
-    client = get_connection()
-    try:
-        sh = client.open(SPREADSHEET_NAME)
-        ws_items = sh.worksheet('商品マスタ')
-        items_data = ws_items.get_all_values()
-        if not items_data: return None, None, pd.DataFrame(), None, pd.DataFrame()
-        df_items = pd.DataFrame(items_data[1:], columns=items_data[0])
+  const filteredItems = items.filter(item => 
+    searchQuery === '' || 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.publisher.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const selectedItem = items.find(i => i.id === selectedItemId);
+
+  // --- Styles mimicking the user's CSS ---
+  // Container style for mobile optimization
+  const containerClass = "max-w-[600px] mx-auto bg-white min-h-screen shadow-lg relative pb-32 font-sans text-gray-800";
+  
+  // ★修正箇所：ヘッダーをよりコンパクトに（py-2 -> py-1, text-[11px] -> text-[10px]）
+  const headerBoxClass = "bg-[#222] text-white font-bold text-[10px] text-center py-1 px-1 rounded block w-full leading-tight flex items-center justify-center";
+  
+  return (
+    <div className="bg-gray-100 min-h-screen p-0 sm:p-4">
+      <div className={containerClass}>
         
-        ws_logs = sh.worksheet('入出庫履歴')
-        logs_data = ws_logs.get_all_values()
-        if not logs_data:
-            df_logs = pd.DataFrame(columns=['ログID', '日時', '操作', '商品ID', '変動数', '備考'])
-        else:
-            df_logs = pd.DataFrame(logs_data[1:], columns=logs_data[0])
-            
-        return sh, ws_items, df_items, ws_logs, df_logs
-    except Exception as e:
-        st.error(f"接続エラー: {e}")
-        return None, None, None, None, None
+        {/* Header */}
+        <div className="p-4 border-b">
+          <h3 className="text-xl font-bold mb-4">教科書在庫管理</h3>
+          
+          {/* Menu / Tabs */}
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+            <button 
+              onClick={() => setView('list')}
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${view === 'list' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-200'}`}
+            >
+              在庫リスト
+            </button>
+            <button 
+              onClick={() => setView('add')}
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all flex items-center justify-center gap-1 ${view === 'add' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:bg-gray-200'}`}
+            >
+              <Plus size={14} /> 教科書を追加
+            </button>
+          </div>
+        </div>
 
-def main():
-    if 'selected_book_id' not in st.session_state:
-        st.session_state.selected_book_id = None
-        st.session_state.selected_book_name = ""
-        st.session_state.selected_book_stock = 0
-
-    st.markdown("### 教科書在庫管理")
-    
-    sh, ws_items, df_items, ws_logs, df_logs = load_data()
-    if sh is None: return
-
-    df_items.columns = df_items.columns.str.strip()
-    cols_to_num = ['商品ID', '現在在庫数', '発注点']
-    for col in cols_to_num:
-        if col in df_items.columns:
-            df_items[col] = pd.to_numeric(df_items[col], errors='coerce').fillna(0).astype(int)
-
-    # ---------------------------------------------------------
-    # メニュー切り替え（ラジオボタン）
-    # ---------------------------------------------------------
-    menu = st.radio("メニュー", ["在庫リスト", "⊕教科書を追加"], horizontal=True, label_visibility="collapsed")
-
-    # =========================================================
-    # 「在庫リスト」モード
-    # =========================================================
-    if menu == "在庫リスト":
-        
-        # 検索・更新
-        c_search, c_update = st.columns([3.5, 1])
-        with c_search:
-            search_query = st.text_input("search", placeholder="検索...", label_visibility="collapsed")
-        with c_update:
-            if st.button("↻ 更新", use_container_width=True): 
-                st.session_state.selected_book_id = None
-                st.rerun()
-
-        # 並べ替え機能（復活）
-        sort_mode = st.radio("", ["追加日順", "在庫少ない順", "名前順"], horizontal=True, label_visibility="collapsed")
-        
-        if sort_mode == "追加日順" and '商品ID' in df_items.columns:
-            df_items = df_items.sort_values('商品ID', ascending=False)
-        elif sort_mode == "在庫少ない順":
-            df_items = df_items.sort_values('現在在庫数', ascending=True)
-        elif sort_mode == "名前順":
-            df_items = df_items.sort_values('教科書名', ascending=True)
-
-        if search_query:
-            mask = df_items.apply(lambda x: search_query.lower() in str(x).lower(), axis=1)
-            df_display = df_items[mask]
-        else:
-            df_display = df_items
-
-        # --- ヘッダー行 ---
-        # 比率: [教科書名(4), 在庫(1.5)] -> 合計5.5でスマホ幅に収める
-        h1, h2 = st.columns([4, 1.5])
-        h1.markdown('<div class="header-text" style="text-align:left; padding-left:5px; background:none; color:#333;">教科書名（タップして選択）</div>', unsafe_allow_html=True)
-        h2.markdown('<div class="header-text">在庫</div>', unsafe_allow_html=True)
-        st.markdown("<hr style='margin:0; border-top:2px solid #333;'>", unsafe_allow_html=True)
-
-        # --- データ一覧 ---
-        if df_display.empty:
-            st.info("データがありません")
-
-        for index, row in df_display.iterrows():
-            item_id = int(row['商品ID'])
-            name = row['教科書名']
-            stock = int(row['現在在庫数'])
-            alert = int(row['発注点'])
-            
-            is_low = stock <= alert
-            stock_color = "#e74c3c" if is_low else "#333"
-            
-            # 行の表示
-            c1, c2 = st.columns([4, 1.5])
-            
-            with c1:
-                # 教科書名（ボタンだが、見た目はただのテキスト）
-                st.markdown('<div class="row-btn">', unsafe_allow_html=True)
-                # selected状態なら色を変えるなどのロジックも可能だが、シンプルに
-                if st.button(f"{name}", key=f"sel_{item_id}", use_container_width=True):
-                    st.session_state.selected_book_id = item_id
-                    st.session_state.selected_book_name = name
-                    st.session_state.selected_book_stock = stock
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            with c2:
-                # 在庫数
-                st.markdown(f"""
-                <div style="text-align:center; height:100%; display:flex; align-items:center; justify-content:center;">
-                    <span style="font-size:18px; font-weight:bold; color:{stock_color};">{stock}</span>
+        {/* Content Area */}
+        <div className="p-2">
+          
+          {view === 'list' && (
+            <>
+              {/* Search & Refresh */}
+              <div className="flex gap-2 mb-4">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-2 top-2.5 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="検索..." 
+                    className="w-full pl-8 pr-2 py-2 border rounded text-sm focus:outline-none focus:border-blue-500"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-                """, unsafe_allow_html=True)
+                <button 
+                  onClick={() => { setSearchQuery(''); setSelectedItemId(null); }}
+                  className="px-4 border rounded bg-white hover:bg-gray-50 text-sm font-bold text-gray-600 flex items-center gap-1"
+                >
+                  <RotateCcw size={14} /> 更新
+                </button>
+              </div>
 
-            st.markdown("<hr style='margin:0; border-top:1px solid #eee;'>", unsafe_allow_html=True)
+              {/* Table Header */}
+              <div className="flex gap-1 mb-2">
+                <div className={`${headerBoxClass} w-[70%]`}>教科書名 (タップして選択)</div>
+                <div className={`${headerBoxClass} w-[30%]`}>在庫</div>
+              </div>
 
-        # --- フッター操作パネル（コンパクト・折りたたみなし） ---
-        with st.sidebar:
-            # 選択中の情報（1行で収める）
-            info_text = f"選択中: <b>{st.session_state.selected_book_name}</b>" if st.session_state.selected_book_id else "（リストから教科書を選択してください）"
-            st.markdown(f"<div style='font-size:12px; color:#555; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{info_text}</div>", unsafe_allow_html=True)
-            
-            # 操作ボタン（比率 1:1.2:1.2）
-            c_qty, c_in, c_out = st.columns([1, 1.2, 1.2], gap="small")
-            
-            is_disabled = st.session_state.selected_book_id is None
-            
-            with c_qty:
-                qty = st.number_input("qty", min_value=1, value=1, label_visibility="collapsed")
-            
-            with c_in:
-                st.markdown('<div class="footer-btn btn-in">', unsafe_allow_html=True)
-                if st.button("入庫", key="footer_in", disabled=is_disabled, use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "入庫")
-                st.markdown('</div>', unsafe_allow_html=True)
+              {/* List Items */}
+              <div className="flex flex-col gap-0">
+                {filteredItems.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400 text-sm">データがありません</div>
+                ) : (
+                  filteredItems.map((item) => {
+                    const isSelected = selectedItemId === item.id;
+                    const isLow = item.stock <= item.alert;
+                    
+                    return (
+                      <div key={item.id} className="group">
+                        <div className="flex gap-1 py-1 items-stretch">
+                          {/* Name Button */}
+                          <div className="w-[70%] pl-1">
+                            <button
+                              onClick={() => setSelectedItemId(item.id)}
+                              className={`
+                                w-full text-left font-bold text-[13px] min-h-[42px] px-2 py-1 rounded border border-gray-200 leading-tight transition-all
+                                ${isSelected ? 'bg-green-50 border-green-500 ring-1 ring-green-500' : 'bg-white hover:border-gray-300'}
+                              `}
+                            >
+                              {item.name}
+                              <div className="text-[10px] font-normal text-gray-500 mt-1 truncate">
+                                {item.publisher} / {item.location}
+                              </div>
+                            </button>
+                          </div>
+                          
+                          {/* Stock Display */}
+                          <div className="w-[30%] pr-1">
+                            <div className="h-full flex items-center justify-center bg-transparent">
+                              <span className={`text-base ${isLow ? 'font-bold text-[#e74c3c]' : 'font-bold text-[#333]'}`}>
+                                {item.stock}
+                              </span>
+                              {isLow && <AlertCircle size={12} className="text-[#e74c3c] ml-1" />}
+                            </div>
+                          </div>
+                        </div>
+                        <hr className="border-t border-gray-100 my-0" />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+
+          {view === 'add' && (
+            <div className="p-2">
+              <h5 className="font-bold mb-4 text-lg">新規登録</h5>
+              <form onSubmit={handleAddItem} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">教科書名 *</label>
+                  <input 
+                    required
+                    type="text" 
+                    className="w-full border p-2 rounded focus:outline-blue-500"
+                    value={newItem.name}
+                    onChange={e => setNewItem({...newItem, name: e.target.value})}
+                    placeholder="例: 高校数学I"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">出版社 *</label>
+                  <input 
+                    required
+                    type="text" 
+                    className="w-full border p-2 rounded focus:outline-blue-500"
+                    value={newItem.publisher}
+                    onChange={e => setNewItem({...newItem, publisher: e.target.value})}
+                    placeholder="例: 数研出版"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">ISBN</label>
+                    <input 
+                      type="text" 
+                      className="w-full border p-2 rounded focus:outline-blue-500"
+                      value={newItem.isbn}
+                      onChange={e => setNewItem({...newItem, isbn: e.target.value})}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">保管場所</label>
+                    <input 
+                      type="text" 
+                      className="w-full border p-2 rounded focus:outline-blue-500"
+                      value={newItem.location}
+                      onChange={e => setNewItem({...newItem, location: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">初期在庫</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="w-full border p-2 rounded focus:outline-blue-500"
+                      value={newItem.stock}
+                      onChange={e => setNewItem({...newItem, stock: parseInt(e.target.value)})}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">発注点</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      className="w-full border p-2 rounded focus:outline-blue-500"
+                      value={newItem.alert}
+                      onChange={e => setNewItem({...newItem, alert: parseInt(e.target.value)})}
+                    />
+                  </div>
+                </div>
+                <button 
+                  type="submit"
+                  className="w-full bg-blue-600 text-white font-bold py-3 rounded mt-4 hover:bg-blue-700 transition-colors"
+                >
+                  登録
+                </button>
+              </form>
+            </div>
+          )}
+
+        </div>
+
+        {/* Fixed Footer Logic */}
+        {view === 'list' && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
+            {/* Centered constraints for footer to match container */}
+            <div className="max-w-[600px] mx-auto pointer-events-auto">
+              <div className="bg-white border-t border-gray-300 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-2 pb-4">
                 
-            with c_out:
-                st.markdown('<div class="footer-btn btn-out">', unsafe_allow_html=True)
-                if st.button("出庫", key="footer_out", disabled=is_disabled, use_container_width=True):
-                    update_stock(ws_items, ws_logs, st.session_state.selected_book_id, st.session_state.selected_book_name, st.session_state.selected_book_stock, qty, "出庫")
-                st.markdown('</div>', unsafe_allow_html=True)
+                {/* 1. Info Row */}
+                <div className="text-[11px] text-gray-600 mb-2 truncate px-1">
+                  選択中: <b className="text-black text-sm">{selectedItem ? selectedItem.name : "（未選択）"}</b> 
+                  {selectedItem && ` (在庫: ${selectedItem.stock})`}
+                </div>
 
-    # =========================================================
-    # 「教科書を追加」モード
-    # =========================================================
-    elif menu == "⊕教科書を追加":
-        st.markdown("##### 新規登録")
-        with st.form("add"):
-            names = list(df_items['教科書名'].unique()) if '教科書名' in df_items.columns else []
-            name_sel = st.selectbox("教科書名", options=names + ["新規入力"], index=None, placeholder="選択...")
-            name_in = ""
-            if name_sel == "新規入力": name_in = st.text_input("入力")
-            
-            pubs = list(df_items['出版社'].unique()) if '出版社' in df_items.columns else []
-            pub_sel = st.selectbox("出版社", options=pubs + ["その他"], index=None, placeholder="選択...")
-            pub_in = ""
-            if pub_sel == "その他": pub_in = st.text_input("入力")
-            
-            c1, c2 = st.columns(2)
-            isbn = c1.text_input("ISBN")
-            loc = c2.text_input("保管場所")
-            
-            c3, c4 = st.columns(2)
-            stock = c3.number_input("初期在庫", min_value=1, value=1)
-            alert = c4.number_input("発注点", min_value=1, value=1)
-            
-            if st.form_submit_button("登録", use_container_width=True):
-                fname = name_in if name_sel == "新規入力" else name_sel
-                fpub = pub_in if pub_sel == "その他" else pub_sel
-                
-                if not fname or not fpub:
-                    st.error("必須")
-                else:
-                    nid = int(df_items['商品ID'].max()) + 1 if not df_items.empty else 1
-                    ws_items.append_row([int(nid), str(fname), str(isbn), str(fpub), int(stock), int(alert), str(loc)])
-                    add_log(ws_logs, "新規登録", nid, fname, stock)
-                    st.success(f"登録完了: {fname}")
-                    st.rerun()
+                {/* 2. Control Row */}
+                <div className="flex gap-2 items-center">
+                  {/* Quantity Input */}
+                  <div className="w-[25%]">
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={qty}
+                      onChange={(e) => setQty(Math.max(1, parseInt(e.target.value)))}
+                      className="w-full h-[40px] text-center border rounded font-bold text-lg focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
 
-def update_stock(ws_items, ws_logs, item_id, item_name, current_stock, quantity, action_type):
-    new_stock = current_stock + quantity if action_type == "入庫" else current_stock - quantity
-    if new_stock < 0:
-        st.error("在庫不足")
-        return
-    try:
-        cell = ws_items.find(str(item_id), in_column=1)
-        ws_items.update_cell(cell.row, 5, new_stock)
-        
-        change = quantity if action_type == "入庫" else -quantity
-        add_log(ws_logs, action_type, item_id, item_name, change)
-        
-        # セッション更新
-        st.session_state.selected_book_stock = new_stock
-        st.toast(f"{action_type}完了 (残{new_stock})")
-        st.rerun()
-    except Exception as e:
-        st.error(f"エラー: {e}")
+                  {/* IN Button */}
+                  <div className="w-[37.5%]">
+                    <button
+                      onClick={() => handleStockUpdate('入庫')}
+                      disabled={!selectedItem}
+                      className={`
+                        w-full h-[40px] rounded font-bold text-white text-xs sm:text-sm flex items-center justify-center gap-1
+                        ${!selectedItem ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#28a745] hover:bg-[#218838] active:translate-y-0.5 transition-all'}
+                      `}
+                    >
+                      <Package size={16} /> 入庫
+                    </button>
+                  </div>
 
-def add_log(ws_logs, action_type, item_id, item_name, change_val):
-    try:
-        log_id = int(datetime.now().timestamp())
-        now = datetime.now().strftime("%Y/%m/%d %H:%M")
-        ws_logs.append_row([log_id, now, action_type, int(item_id), int(change_val), str(item_name)])
-    except:
-        pass 
+                  {/* OUT Button */}
+                  <div className="w-[37.5%]">
+                    <button
+                      onClick={() => handleStockUpdate('出庫')}
+                      disabled={!selectedItem}
+                      className={`
+                        w-full h-[40px] rounded font-bold text-white text-xs sm:text-sm flex items-center justify-center gap-1
+                        ${!selectedItem ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#e74c3c] hover:bg-[#c0392b] active:translate-y-0.5 transition-all'}
+                      `}
+                    >
+                      <Archive size={16} /> 出庫
+                    </button>
+                  </div>
+                </div>
 
-if __name__ == "__main__":
-    main()
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
