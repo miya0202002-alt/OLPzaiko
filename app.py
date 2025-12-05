@@ -56,8 +56,6 @@ st.markdown("""
     div[data-testid="stNumberInput"] { margin: 0 !important; }
     div[data-testid="stTextInput"] { margin-bottom: 0px; }
 
-    /* ※矢印を消すCSSは削除しました（復活） */
-
     /* 5. ヘッダーのデザイン（黒背景） */
     .table-header {
         background-color: #222;
@@ -70,7 +68,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         margin-top: 5px;
-        height: 100%; /* 高さを揃える */
+        height: 100%;
     }
 
     /* 6. 行のデザイン（枠線あり） */
@@ -105,23 +103,26 @@ st.markdown("""
     button[kind="secondary"]:active { background-color: #e6f9e6 !important; }
 
     /* 出庫ボタン（朱色文字＋朱色枠） */
+    /* ★修正：朱色の文字色を強制適用 */
     button[kind="primary"] {
         background-color: transparent !important;
         color: #e74c3c !important;
         border: 1px solid #e74c3c !important;
     }
     button[kind="primary"]:active { background-color: #fceceb !important; }
+    /* Streamlitのデフォルトスタイルを上書きして文字色を朱色にする */
+    button[kind="primary"] p { color: #e74c3c !important; }
 
     /* 更新ボタンのみ例外（グレー背景） */
     div.stHorizontalBlock > div:nth-child(2) button {
         background-color: #f0f0f0 !important;
         color: #333 !important;
         border: 1px solid #ccc !important;
-        height: 30px !important;
     }
+    div.stHorizontalBlock > div:nth-child(2) button p { color: #333 !important; }
 
-    /* 文字スタイル */
-    .book-name { font-size: 10px; font-weight: bold; line-height: 1.1; padding-left: 2px; }
+    /* ★修正：教科書名の文字を大きく */
+    .book-name { font-size: 13px; font-weight: bold; line-height: 1.1; padding-left: 2px; }
     .book-sub { font-size: 9px; color: #666; display: block; padding-left: 2px; }
     .stock-val { font-size: 12px; font-weight: bold; text-align: center; }
     
@@ -200,18 +201,18 @@ def main():
     tab_list, tab_add = st.tabs(["📦 在庫リスト", "➕ 新規登録"])
 
     # ---------------------------------------------------------
-    # 在庫リスト（修正版：ヘッダーとデータの完全同期）
+    # 在庫リスト
     # ---------------------------------------------------------
     with tab_list:
-        # ★修正：幅比率の統一
-        # [名前3, 在庫1, 数1, 操作2] (合計7)
-        # この比率をヘッダーとデータ行で絶対に守る
-        col_ratio = [3, 1, 1, 2]
+        # ★修正：幅比率の変更（教科書名を半分に縮小）
+        # 元 [3, 1, 1, 2] -> 新 [1.5, 1, 1, 2]
+        # これで教科書名の欄が狭くなり、全体が画面に収まりやすくなります
+        col_ratio = [1.5, 1, 1, 2]
 
         # ヘッダー行
         st.markdown("""
         <div class="table-header">
-            <div style="flex:3; text-align:left; padding-left:4px;">教科書名</div>
+            <div style="flex:1.5; text-align:left; padding-left:4px;">教科書名</div>
             <div style="flex:1; text-align:center;">在庫</div>
             <div style="flex:1; text-align:center;">数</div>
             <div style="flex:2; text-align:center;">操作</div>
@@ -258,7 +259,7 @@ def main():
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # 数量（矢印復活）
+                # 数量
                 qty = st.number_input("q", min_value=1, value=1, label_visibility="collapsed", key=f"q_{item_id}")
                 
             with c4:
